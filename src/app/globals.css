@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/* 莫兰迪配色主题 - 校招助手 */
+:root {
+  /* 主色系 - 低饱和度的莫兰迪色 */
+  --primary: #8B9A7D;        /* 灰绿色 - 主色调 */
+  --primary-light: #A8B89E;  /* 浅灰绿 */
+  --primary-dark: #6B7A5D;    /* 深灰绿 */
+
+  /* 辅助色 */
+  --secondary: #C4B7A6;       /* 暖灰棕 */
+  --secondary-light: #D4C8B8; /* 浅暖灰 */
+  --accent: #9CAFB7;          /* 雾霾蓝 */
+
+  /* 中性色 */
+  --muted: #E8E4DF;           /* 米白灰 */
+  --muted-dark: #D4CFC8;     /* 深米灰 */
+  --border: #C9C4BC;          /* 边框色 */
+
+  /* 背景色 */
+  --background: #FAFAF8;      /* 主背景 - 温暖的米白 */
+  --surface: #F5F3F0;         /* 卡片表面 */
+  --surface-hover: #EFECE7;   /* 悬停状态 */
+
+  /* 文字色 */
+  --foreground: #4A4A48;      /* 主文字 - 柔和的深灰 */
+  --foreground-light: #7A7A76; /* 次要文字 */
+  --foreground-muted: #9A9A94; /* 辅助文字 */
+
+  /* 状态色 */
+  --success: #8BA888;         /* 柔和的绿 */
+  --warning: #D4A574;         /* 柔和的橙 */
+  --error: #C48B8B;           /* 柔和的红 */
+  --info: #8BA3B2;            /* 柔和的蓝 */
+
+  /* 圆角 */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+}
+
+/* 深色模式（可选） */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1F1F1D;
+    --surface: #2A2A28;
+    --foreground: #E8E4DF;
+    --foreground-light: #C4BFB8;
+    --border: #3A3A38;
+  }
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-foreground-light: var(--foreground-light);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+  --radius: var(--radius);
+  --radius-sm: var(--radius-sm);
+  --radius-lg: var(--radius-lg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  line-height: 1.6;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground-muted);
+}
+
+/* 动画过渡 */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
