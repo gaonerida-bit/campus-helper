@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useApplications, useContacts, useResumes, useOffers, useInterviews } from '@/context/DataContext';
 
 interface SearchResult {
   id: string;
@@ -11,15 +12,6 @@ interface SearchResult {
   icon: string;
   url: string;
 }
-
-const mockResults: SearchResult[] = [
-  { id: '1', type: 'application', title: '字节跳动', subtitle: '前端开发工程师 · 面试中', icon: '🏢', url: '/applications/1' },
-  { id: '2', type: 'application', title: '腾讯', subtitle: 'Web前端开发 · 待回复', icon: '🏢', url: '/applications/2' },
-  { id: '3', type: 'interview', title: '字节跳动一面', subtitle: '面试复盘 · 昨天', icon: '🎯', url: '/interview/1' },
-  { id: '4', type: 'contact', title: '张学长', subtitle: '字节跳动 · 可内推', icon: '👨‍🎓', url: '/contacts/1' },
-  { id: '5', type: 'resume', title: '通用前端简历', subtitle: '简历库 · v3.2', icon: '📄', url: '/resume/1' },
-  { id: '6', type: 'offer', title: '美团Offer', subtitle: '28k×15薪 · 待决策', icon: '🏆', url: '/offer/1' },
-];
 
 interface GlobalSearchProps {
   isOpen: boolean;
@@ -33,6 +25,79 @@ export default function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  const { applications } = useApplications();
+  const { contacts } = useContacts();
+  const { resumes } = useResumes();
+  const { offers } = useOffers();
+  const { interviews } = useInterviews();
+
+  // Build searchable index from real data
+  const allResults = useMemo(() => {
+    const items: SearchResult[] = [];
+
+    // Applications
+    applications.forEach(app => {
+      items.push({
+        id: app.id,
+        type: 'application',
+        title: app.company,
+        subtitle: `${app.position} · ${app.stage}`,
+        icon: '🏢',
+        url: `/applications/${app.id}`,
+      });
+    });
+
+    // Contacts
+    contacts.forEach(contact => {
+      items.push({
+        id: contact.id,
+        type: 'contact',
+        title: contact.name,
+        subtitle: `${contact.company} · ${contact.position}`,
+        icon: '👤',
+        url: `/contacts`,
+      });
+    });
+
+    // Resumes
+    resumes.forEach(resume => {
+      items.push({
+        id: resume.id,
+        type: 'resume',
+        title: resume.title,
+        subtitle: `版本 ${resume.version}`,
+        icon: '📄',
+        url: `/resume`,
+      });
+    });
+
+    // Offers
+    offers.forEach(offer => {
+      items.push({
+        id: offer.id,
+        type: 'offer',
+        title: offer.company,
+        subtitle: `${offer.position} · ${offer.salary.total ? `总包 ${offer.salary.total}万` : '待评估'}`,
+        icon: '🏆',
+        url: `/offer`,
+      });
+    });
+
+    // Interviews
+    interviews.forEach(interview => {
+      items.push({
+        id: interview.id,
+        type: 'interview',
+        title: `${interview.company} ${interview.type}`,
+        subtitle: `${interview.date} · ${interview.time}`,
+        icon: '🎯',
+        url: `/interview`,
+      });
+    });
+
+    return items;
+  }, [applications, contacts, resumes, offers, interviews]);
+
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
@@ -41,18 +106,18 @@ export default function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
 
   useEffect(() => {
     if (query.trim()) {
-      // 模拟搜索
-      const filtered = mockResults.filter(
+      const lowerQuery = query.toLowerCase();
+      const filtered = allResults.filter(
         (r) =>
-          r.title.toLowerCase().includes(query.toLowerCase()) ||
-          r.subtitle.toLowerCase().includes(query.toLowerCase())
+          r.title.toLowerCase().includes(lowerQuery) ||
+          r.subtitle.toLowerCase().includes(lowerQuery)
       );
       setResults(filtered);
       setSelectedIndex(0);
     } else {
       setResults([]);
     }
-  }, [query]);
+  }, [query, allResults]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -61,7 +126,6 @@ export default function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
         if (isOpen) {
           onClose();
         } else {
-          // 打开搜索 - 通过事件触发
           window.dispatchEvent(new CustomEvent('open-search'));
         }
       }

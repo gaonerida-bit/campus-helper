@@ -443,12 +443,82 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // ============= Storage Keys =============
 const STORAGE_KEY = 'campus-helper-data';
+const INIT_KEY = 'campus-helper-initialized';
+
+// ============= Sample Data =============
+import { sampleApplications, sampleInterviews, sampleContacts, sampleExams, sampleOffers, sampleResumes, sampleEvents, sampleQuestions } from '@/lib/sampleData';
+
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
 
 function loadFromStorage(): Partial<AppState> {
   if (typeof window === 'undefined') return {};
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : {};
+    if (data) {
+      return JSON.parse(data);
+    }
+
+    // First visit - load sample data
+    if (!localStorage.getItem(INIT_KEY)) {
+      const now = new Date().toISOString();
+      const sampleData: Partial<AppState> = {
+        applications: sampleApplications.map(a => ({
+          ...a,
+          id: generateId(),
+          createdAt: now,
+          updatedAt: now,
+        })),
+        interviews: sampleInterviews.map(i => ({
+          ...i,
+          id: generateId(),
+          createdAt: now,
+        })),
+        contacts: sampleContacts.map(c => ({
+          ...c,
+          id: generateId(),
+          createdAt: now,
+        })),
+        exams: sampleExams.map(e => ({
+          ...e,
+          id: generateId(),
+          createdAt: now,
+        })),
+        questions: sampleQuestions.map(q => ({
+          ...q,
+          id: generateId(),
+          createdAt: now,
+        })),
+        offers: sampleOffers.map(o => ({
+          ...o,
+          id: generateId(),
+          createdAt: now,
+        })),
+        resumes: sampleResumes.map(r => ({
+          ...r,
+          id: generateId(),
+          createdAt: now,
+          updatedAt: now,
+          version: 1,
+        })),
+        events: sampleEvents.map(e => ({
+          ...e,
+          id: generateId(),
+          createdAt: now,
+        })),
+        activities: [],
+        chatHistory: [],
+      };
+
+      // Save sample data to storage
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sampleData));
+      localStorage.setItem(INIT_KEY, 'true');
+
+      return sampleData;
+    }
+
+    return {};
   } catch {
     return {};
   }

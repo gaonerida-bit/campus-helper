@@ -14,12 +14,27 @@ export default function SettingsPage() {
   const [noResponseDays, setNoResponseDays] = useState(userProfile.settings?.noResponseDays || 7);
   const [quietHoursStart, setQuietHoursStart] = useState(userProfile.settings?.quietHoursStart || '22:00');
   const [quietHoursEnd, setQuietHoursEnd] = useState(userProfile.settings?.quietHoursEnd || '08:00');
+  const [apiKey, setApiKey] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('kimi-api-key') || '';
+    }
+    return '';
+  });
+  const [showApiKey, setShowApiKey] = useState(false);
   const [monthlyBudget, setMonthlyBudget] = useState(userProfile.settings?.monthlyBudget || 100);
   const [targetApplications, setTargetApplications] = useState(userProfile.goals?.applications || 50);
   const [targetInterviews, setTargetInterviews] = useState(userProfile.goals?.interviews || 20);
   const [name, setName] = useState(userProfile.name);
   const [title, setTitle] = useState(userProfile.title);
   const [isImporting, setIsImporting] = useState(false);
+  const [aiUsage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const used = parseFloat(localStorage.getItem('kimi-usage') || '0');
+      const budget = userProfile.settings?.monthlyBudget || 100;
+      return { used, budget, percent: Math.min(100, (used / budget) * 100) };
+    }
+    return { used: 0, budget: 100, percent: 0 };
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -47,6 +62,10 @@ export default function SettingsPage() {
         monthlyBudget,
       },
     });
+    // Save Kimi API Key
+    if (apiKey) {
+      localStorage.setItem('kimi-api-key', apiKey);
+    }
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,12 +197,28 @@ export default function SettingsPage() {
                 <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                   API Key（Kimi）
                 </label>
-                <input
-                  type="password"
-                  placeholder="sk-..."
-                  className="w-full px-4 py-2 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                />
-                <p className="text-xs text-[var(--foreground-muted)] mt-1">用于调用 Kimi AI API 提供智能助手功能</p>
+                <div className="relative">
+                  <input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="sk-..."
+                    className="w-full px-4 py-2 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                  >
+                    {showApiKey ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                <p className="text-xs text-[var(--foreground-muted)] mt-1">
+                  用于调用 Kimi AI API 提供智能助手功能
+                </p>
+                {apiKey && apiKey.startsWith('sk-') && (
+                  <p className="text-xs text-green-600 mt-1">✅ API Key 已配置</p>
+                )}
               </div>
               <div className="flex items-center justify-between">
                 <div>
@@ -201,9 +236,14 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div className="h-2 bg-[var(--muted)] rounded-full overflow-hidden">
-                <div className="h-full bg-[var(--primary)] rounded-full" style={{ width: '23%' }} />
+                <div
+                  className="h-full bg-[var(--primary)] rounded-full transition-all"
+                  style={{ width: `${aiUsage.percent}%` }}
+                />
               </div>
-              <p className="text-sm text-[var(--foreground-muted)]">本月已用 ¥23（23%）</p>
+              <p className="text-sm text-[var(--foreground-muted)]">
+                本月已用 ¥{aiUsage.used.toFixed(2)}（{aiUsage.percent.toFixed(1)}%）
+              </p>
               <Button onClick={handleSaveSettings} className="w-full">保存设置</Button>
             </div>
           </div>
