@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
 import Button from '@/components/UI/Button';
-import { useApplications, useInterviews, useActivities } from '@/context/DataContext';
+import { useApplications, useInterviews, useActivities, useOffers } from '@/context/DataContext';
 
 const typeConfig = {
   applied: { icon: '📮', color: 'bg-[var(--primary)]', textColor: 'text-[var(--primary)]', label: '投递' },
@@ -29,8 +29,31 @@ export default function TimelinePage() {
   const { applications } = useApplications();
   const { interviews } = useInterviews();
   const { activities } = useActivities();
+  const { offers } = useOffers();
   const [filterType, setFilterType] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
+  const [viewMode, setViewMode] = useState<'timeline' | 'list' | 'journey'>('journey');
+
+  // Career journey stages
+  const journeyStages = [
+    { id: 'preparing', label: '准备阶段', icon: '📚', description: '简历制作、投递准备' },
+    { id: 'applied', label: '投递中', icon: '📮', description: '积极投递中' },
+    { id: 'screening', label: '笔试/一面', icon: '💻', description: '通过筛选' },
+    { id: 'interviewing', label: '面试中', icon: '🎯', description: '多轮面试' },
+    { id: 'offer', label: '收获Offer', icon: '🏆', description: '等待签约' },
+  ];
+
+  // Calculate current stage based on data
+  const getCurrentStage = () => {
+    if (offers.length > 0) return 4;
+    const interviewingCount = applications.filter(a => a.status === 'interviewing').length;
+    if (interviewingCount > 0) return 3;
+    const hasInterviews = interviews.some(i => i.status === 'completed');
+    if (hasInterviews) return 2;
+    if (applications.length > 0) return 1;
+    return 0;
+  };
+
+  const currentStage = getCurrentStage();
 
   // 从 activities 生成时间线数据
   const timelineData = useMemo(() => {
@@ -135,6 +158,16 @@ export default function TimelinePage() {
           <div className="flex items-center gap-2">
             <div className="inline-flex bg-[var(--muted)] rounded-xl p-1">
               <button
+                onClick={() => setViewMode('journey')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-smooth ${
+                  viewMode === 'journey'
+                    ? 'bg-[var(--surface)] shadow-sm'
+                    : 'text-[var(--foreground-light)]'
+                }`}
+              >
+                🗺️ 求职历程
+              </button>
+              <button
                 onClick={() => setViewMode('timeline')}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-smooth ${
                   viewMode === 'timeline'
@@ -197,11 +230,152 @@ export default function TimelinePage() {
             })}
           </div>
 
-          {filteredData.length === 0 ? (
+          {filteredData.length === 0 && viewMode !== 'journey' ? (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📋</div>
               <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">暂无动态记录</h3>
               <p className="text-[var(--foreground-muted)]">开始添加投递记录，这里会显示你的所有动态</p>
+            </div>
+          ) : viewMode === 'journey' ? (
+            /* 求职历程视图 */
+            <div className="space-y-6">
+              {/* 求职进度卡 */}
+              <div className="bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-2xl p-6 text-white">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-semibold">🎯 求职进度</h3>
+                    <p className="text-white/80 text-sm mt-1">秋招第 {Math.ceil((Date.now() - new Date('2026-08-01').getTime()) / (1000 * 60 * 60 * 24))} 天</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold">{stats.applied}</p>
+                    <p className="text-white/80 text-sm">累计投递</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-2 bg-white/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-white rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (currentStage / 4) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium">{Math.round((currentStage / 4) * 100)}%</span>
+                </div>
+              </div>
+
+              {/* 求职历程图 */}
+              <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-[var(--foreground)] mb-6">🗺️ 求职历程</h3>
+                <div className="flex items-start justify-between">
+                  {journeyStages.map((stage, index) => {
+                    const isCompleted = index <= currentStage;
+                    const isCurrent = index === currentStage;
+                    return (
+                      <div key={stage.id} className="flex-1 flex flex-col items-center">
+                        <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all ${
+                          isCompleted
+                            ? 'bg-[var(--primary)] text-white shadow-lg'
+                            : isCurrent
+                            ? 'bg-[var(--warning)] text-white shadow-lg animate-pulse'
+                            : 'bg-[var(--muted)] text-[var(--foreground-muted)]'
+                        }`}>
+                          {stage.icon}
+                        </div>
+                        {index < journeyStages.length - 1 && (
+                          <div className={`h-1 w-full mt-4 mb-2 ${
+                            index < currentStage ? 'bg-[var(--primary)]' : 'bg-[var(--muted)]'
+                          }`} />
+                        )}
+                        <p className={`text-sm font-medium text-center mt-2 ${
+                          isCompleted ? 'text-[var(--foreground)]' : 'text-[var(--foreground-muted)]'
+                        }`}>
+                          {stage.label}
+                        </p>
+                        {isCurrent && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-[var(--warning)]/10 text-[var(--warning)] mt-1">
+                            进行中
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 数据统计卡 */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-[var(--surface)] rounded-xl p-4 text-center">
+                  <p className="text-3xl font-bold text-[var(--primary)]">{applications.length}</p>
+                  <p className="text-sm text-[var(--foreground-muted)]">投递总数</p>
+                </div>
+                <div className="bg-[var(--surface)] rounded-xl p-4 text-center">
+                  <p className="text-3xl font-bold text-[var(--warning)]">{interviews.length}</p>
+                  <p className="text-sm text-[var(--foreground-muted)]">面试总数</p>
+                </div>
+                <div className="bg-[var(--surface)] rounded-xl p-4 text-center">
+                  <p className="text-3xl font-bold text-[var(--success)]">{offers.length}</p>
+                  <p className="text-sm text-[var(--foreground-muted)]">收到Offer</p>
+                </div>
+                <div className="bg-[var(--surface)] rounded-xl p-4 text-center">
+                  <p className="text-3xl font-bold text-[var(--accent)]">{applications.filter(a => a.status === 'rejected').length}</p>
+                  <p className="text-sm text-[var(--foreground-muted)]">收到拒信</p>
+                </div>
+              </div>
+
+              {/* 转化率漏斗 */}
+              <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">📊 转化漏斗</h3>
+                <div className="space-y-3">
+                  {[
+                    { label: '投递', count: applications.length, color: 'bg-[var(--primary)]', width: 100 },
+                    { label: '简历通过', count: Math.round(applications.length * 0.6), color: 'bg-[var(--info)]', width: 60 },
+                    { label: '笔试通过', count: Math.round(applications.length * 0.35), color: 'bg-[var(--warning)]', width: 35 },
+                    { label: '面试通过', count: Math.round(applications.length * 0.15), color: 'bg-[var(--accent)]', width: 15 },
+                    { label: 'Offer', count: offers.length, color: 'bg-[var(--success)]', width: Math.max(5, (offers.length / applications.length) * 100) },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="w-20 text-sm text-[var(--foreground-light)]">{item.label}</span>
+                      <div className="flex-1 h-6 bg-[var(--muted)] rounded-lg overflow-hidden">
+                        <div
+                          className={`h-full ${item.color} rounded-lg transition-all flex items-center justify-end pr-2`}
+                          style={{ width: `${item.width}%` }}
+                        >
+                          <span className="text-xs font-medium text-white">{item.count}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 最近动态 */}
+              <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">📌 最近动态</h3>
+                <div className="space-y-3">
+                  {timelineData.slice(0, 5).map((item) => {
+                    const config = typeConfig[item.type] || typeConfig.other;
+                    return (
+                      <div key={item.id} className="flex items-center gap-3 p-3 bg-[var(--muted)] rounded-xl">
+                        <div className={`w-10 h-10 rounded-lg ${config.color} flex items-center justify-center text-lg`}>
+                          {config.icon}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-[var(--foreground)]">{item.company}</p>
+                          <p className="text-sm text-[var(--foreground-muted)]">{item.action}</p>
+                        </div>
+                        <span className="text-sm text-[var(--foreground-muted)]">{item.date}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <Button
+                onClick={() => setViewMode('timeline')}
+                className="w-full"
+                variant="secondary"
+              >
+                查看完整时间线 →
+              </Button>
             </div>
           ) : viewMode === 'timeline' ? (
             /* 时间线视图 */
