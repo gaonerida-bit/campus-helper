@@ -2,63 +2,74 @@
 
 ## 快速部署到 Vercel
 
-### 方式一：Vercel CLI（推荐）
+### 方式一：Vercel Dashboard（最简单）
 
-1. 在本地打开终端
-2. 下载压缩包并解压
-3. 进入项目目录：
-   ```bash
-   cd campus-helper
-   ```
-4. 安装依赖：
-   ```bash
-   npm install
-   ```
-5. 部署：
-   ```bash
-   npm install -g vercel
-   vercel
-   ```
-6. 按提示操作，几分钟后获得在线链接！
+1. 访问 [vercel.com](https://vercel.com) 并登录
+2. 点击 **"Add New..."** → **"Project"**
+3. 选择 **"Import Git Repository"**
+4. 选择仓库 `gaonerida-bit/campus-helper`
+5. Framework Preset 会自动选择 **Next.js**
+6. 点击 **Deploy**
 
-### 方式二：GitHub 导入
+几分钟后获得在线链接！如：`https://campus-helper.vercel.app`
 
-1. 把代码上传到 GitHub 新仓库
-2. 访问 [vercel.com](https://vercel.com)
-3. 点击 "Import Project"
-4. 选择你的 GitHub 仓库
-5. 点击 Deploy！
+### 方式二：本地 CLI 部署
 
-### 方式三：直接上传
+```bash
+# 克隆仓库
+git clone https://github.com/gaonerida-bit/campus-helper.git
+cd campus-helper
 
-1. 访问 [vercel.com](https://vercel.com)
-2. 点击 "Add New" → "Project"
-3. 选择 "Import Third-Party Git Repository"
-4. 粘贴 GitHub 仓库地址
+# 安装依赖
+npm install
+
+# 登录 Vercel（浏览器会自动打开）
+npx vercel login
+
+# 部署预览
+npx vercel
+
+# 部署到生产
+npx vercel --prod
+```
+
+### 方式三：GitHub Actions 自动部署
+
+1. 登录 Vercel → Settings → Tokens → Create Token
+2. 复制 Token 和 Organization ID
+3. GitHub 仓库 Settings → Secrets 添加：
+   - `VERCEL_TOKEN`
+   - `VERCEL_ORG_ID`  
+   - `VERCEL_PROJECT_ID`
+4. 推送代码自动部署
+
+## 当前代码状态
+
+- ✅ Next.js 16 项目结构
+- ✅ 所有页面和组件
+- ✅ localStorage 数据持久化
+- ✅ GitHub 已提交
+- ⏳ 需要 Vercel 部署才能在线访问
 
 ## 功能概览
 
 | 页面 | 功能 |
 |------|------|
-| 📊 数据看板 | 统计图表、成就徽章、目标进度 |
-| 📋 投递管理 | 看板/表格/卡片多视图 |
-| 📅 校招日历 | 月历视图、待办事项 |
-| 📄 简历库 | 多版本简历、素材库 |
-| 🎯 面试准备 | 题库、AI模拟面试 |
-| 🤝 联系人 | 内推人管理 |
-| 🏆 Offer对比 | 薪资对比、城市成本计算 |
-| 🤖 AI助手 | 智能对话、公司库 |
+| 📊 首页 | 统计卡片、目标进度、本周日程 |
+| 📋 投递管理 | 看板/表格/卡片三视图、CRUD |
+| 🎯 面试管理 | 日程、题库、复盘记录 |
+| ✏️ 笔试准备 | 分类题库、难度筛选 |
+| 🤝 联系人 | HR、面试官、校友管理 |
+| 🏆 Offer对比 | 薪资对比 |
+| 🤖 AI助手 | 智能对话 |
+| 📄 简历管理 | 多版本、PDF导出 |
+| 📅 日历 | 日程管理 |
 | ⏱️ 时间线 | 投递动态 |
+| 📥 备选库 | 备选公司 |
+| ⚙️ 设置 | 用户偏好 |
 
-## 技术栈
+## 后续可接入
 
-- Next.js 16 + App Router
-- TypeScript
-- Tailwind CSS
-- Morandi 配色（#8B9A7D 绿调）
-
-## 后续接入
-
-部署后可以接入：
-- Supabase 数据库（数据持久化）
-- Kimi AI API（AI 对话功能）
+- **Supabase** - 云端数据库（需要创建 Supabase 项目）
+- **Kimi AI API** - 真实 AI 对话
+- **PWA** - 手机桌面图标安装
