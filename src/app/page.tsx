@@ -22,6 +22,7 @@ const quickActions = [
   { id: 4, icon: '📝', title: '笔试题库', href: '/exam', color: 'bg-[var(--success)]' },
   { id: 5, icon: '📄', title: '简历管理', href: '/resume', color: 'bg-[var(--accent)]' },
   { id: 6, icon: '🏆', title: 'Offer对比', href: '/offer', color: 'bg-purple-500' },
+  { id: 7, icon: '🤖', title: 'AI模拟面试', href: '/interview', color: 'bg-pink-500' },
 ];
 
 const weeklySchedule = [
@@ -299,14 +300,14 @@ export default function HomePage() {
             {/* 快捷操作 */}
             <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">⚡ 快捷操作</h3>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 {quickActions.map((action) => (
                   <Link key={action.id} href={action.href}>
-                    <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-[var(--muted)] hover:bg-[var(--muted-dark)] transition-smooth group">
-                      <div className={`w-12 h-12 rounded-xl ${action.color} flex items-center justify-center text-2xl text-white group-hover:scale-110 transition-smooth`}>
+                    <div className="flex flex-col items-center gap-2 p-3 rounded-xl bg-[var(--muted)] hover:bg-[var(--muted-dark)] transition-smooth group">
+                      <div className={`w-10 h-10 rounded-xl ${action.color} flex items-center justify-center text-xl text-white group-hover:scale-110 transition-smooth`}>
                         {action.icon}
                       </div>
-                      <span className="text-sm text-[var(--foreground)]">{action.title}</span>
+                      <span className="text-xs text-[var(--foreground)]">{action.title}</span>
                     </div>
                   </Link>
                 ))}
@@ -463,7 +464,7 @@ export default function HomePage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold mb-1">🤖 AI 助手</h3>
-                <p className="white/80 text-sm">
+                <p className="text-white/80 text-sm">
                   有任何问题？让 AI 帮你优化简历、分析 JD、准备面试
                 </p>
               </div>
