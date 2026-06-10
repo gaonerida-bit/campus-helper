@@ -1,62 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
-import { useStats, useActivities } from '@/context/DataContext';
-
-interface StatCard {
-  title: string;
-  value: number;
-  change?: number;
-  icon: string;
-  color: string;
-}
-
-interface WeeklyData {
-  day: string;
-  applications: number;
-  interviews: number;
-}
-
-interface CompanySource {
-  name: string;
-  count: number;
-  percentage: number;
-}
-
-const stats: StatCard[] = [
-  { title: '总投递数', value: 24, change: 12, icon: '📮', color: 'primary' },
-  { title: '收到回复', value: 8, change: 25, icon: '💬', color: 'success' },
-  { title: '面试机会', value: 5, change: 67, icon: '🎯', color: 'warning' },
-  { title: 'Offer', value: 1, change: 0, icon: '🏆', color: 'accent' },
-];
-
-const weeklyData: WeeklyData[] = [
-  { day: '周一', applications: 3, interviews: 1 },
-  { day: '周二', applications: 5, interviews: 0 },
-  { day: '周三', applications: 2, interviews: 2 },
-  { day: '周四', applications: 4, interviews: 1 },
-  { day: '周五', applications: 6, interviews: 0 },
-  { day: '周六', applications: 1, interviews: 0 },
-  { day: '周日', applications: 3, interviews: 1 },
-];
-
-const companySources: CompanySource[] = [
-  { name: 'Boss直聘', count: 8, percentage: 33 },
-  { name: '官网投递', count: 6, percentage: 25 },
-  { name: '牛客网', count: 5, percentage: 21 },
-  { name: '内推', count: 3, percentage: 13 },
-  { name: '实习僧', count: 2, percentage: 8 },
-];
-
-const achievements = [
-  { id: 1, icon: '🎯', title: '初出茅庐', description: '完成第一次投递', unlocked: true, progress: 100 },
-  { id: 2, icon: '💬', title: '有回音', description: '收到第一个回复', unlocked: true, progress: 100 },
-  { id: 3, icon: '🎯', title: '面试达人', description: '完成5次面试', unlocked: false, progress: 60 },
-  { id: 4, icon: '🏆', title: 'Offer收割机', description: '收到3个Offer', unlocked: false, progress: 33 },
-  { id: 5, icon: '🔥', title: '连续投递', description: '连续7天投递', unlocked: false, progress: 71 },
-];
+import { useStats, useApplications, useInterviews, useOffers } from '@/context/DataContext';
 
 const colorMap: Record<string, string> = {
   primary: 'bg-[var(--primary)]',
@@ -66,9 +13,68 @@ const colorMap: Record<string, string> = {
   info: 'bg-[var(--info)]',
 };
 
+// 成就徽章
+const achievementDefinitions = [
+  { id: 1, icon: '🎯', title: '初出茅庐', description: '完成第一次投递', check: (stats: ReturnType<typeof useStats>['stats']) => stats.totalApplications >= 1 },
+  { id: 2, icon: '💬', title: '有回音', description: '收到第一个回复', check: (stats: ReturnType<typeof useStats>['stats']) => stats.interviewingApplications >= 1 },
+  { id: 3, icon: '🎯', title: '面试达人', description: '完成5次面试', check: (stats: ReturnType<typeof useStats>['stats']) => stats.completedInterviews >= 5 },
+  { id: 4, icon: '🏆', title: 'Offer收割机', description: '收到3个Offer', check: (stats: ReturnType<typeof useStats>['stats']) => stats.offerReceived >= 3 },
+  { id: 5, icon: '🔥', title: '海投战士', description: '投递50家公司', check: (stats: ReturnType<typeof useStats>['stats']) => stats.totalApplications >= 50 },
+];
+
 export default function DashboardPage() {
-  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('week');
-  const maxApplications = Math.max(...weeklyData.map(d => d.applications));
+  const { stats, goals } = useStats();
+  const { applications } = useApplications();
+  const { interviews } = useInterviews();
+  const { offers } = useOffers();
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('all');
+
+  // 计算本周投递趋势（最近7天）
+  const weeklyData = useMemo(() => {
+    const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    const today = new Date();
+    const data = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayName = days[date.getDay()];
+
+      const dayApps = applications.filter(app => app.appliedDate === dateStr).length;
+      const dayInterviews = interviews.filter(int => int.date === dateStr).length;
+
+      data.push({ day: dayName, applications: dayApps, interviews: dayInterviews });
+    }
+
+    return data;
+  }, [applications, interviews]);
+
+  const maxApplications = Math.max(...weeklyData.map(d => d.applications), 1);
+
+  // 投递状态分布
+  const statusDistribution = useMemo(() => [
+    { label: '待回复', count: applications.filter(a => a.status === 'pending').length, color: 'bg-[var(--muted)]', textColor: 'text-[var(--foreground)]' },
+    { label: '面试中', count: applications.filter(a => a.status === 'interviewing').length, color: 'bg-[var(--warning)]', textColor: 'text-white' },
+    { label: '已Offer', count: applications.filter(a => a.status === 'offer').length, color: 'bg-[var(--success)]', textColor: 'text-white' },
+    { label: '已拒绝', count: applications.filter(a => a.status === 'rejected').length, color: 'bg-[var(--error)]', textColor: 'text-white' },
+  ], [applications]);
+
+  // 成就徽章解锁状态
+  const achievements = useMemo(() =>
+    achievementDefinitions.map(a => ({
+      ...a,
+      unlocked: a.check(stats),
+      progress: stats.totalApplications > 0 ? Math.min(100, (stats.totalApplications / 50) * 100) : 0
+    }))
+  , [stats]);
+
+  const statCards = [
+    { title: '总投递数', value: stats.totalApplications, icon: '📮', color: 'primary' },
+    { title: '面试中', value: stats.interviewingApplications, icon: '💬', color: 'warning' },
+    { title: '已完成面试', value: stats.completedInterviews, icon: '🎯', color: 'info' },
+    { title: 'Offer', value: stats.offerReceived || offers.length, icon: '🏆', color: 'success' },
+  ];
 
   return (
     <AppLayout>
@@ -98,7 +104,7 @@ export default function DashboardPage() {
         <div className="max-w-6xl mx-auto space-y-6">
           {/* 统计卡片 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {stats.map((stat) => (
+            {statCards.map((stat) => (
               <div
                 key={stat.title}
                 className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm"
@@ -107,11 +113,6 @@ export default function DashboardPage() {
                   <div className={`w-12 h-12 rounded-xl ${colorMap[stat.color]} flex items-center justify-center text-2xl text-white`}>
                     {stat.icon}
                   </div>
-                  {stat.change !== undefined && stat.change !== 0 && (
-                    <span className={`text-sm font-medium ${stat.change > 0 ? 'text-[var(--success)]' : 'text-[var(--error)]'}`}>
-                      {stat.change > 0 ? '↑' : '↓'} {Math.abs(stat.change)}%
-                    </span>
-                  )}
                 </div>
                 <p className="text-3xl font-bold text-[var(--foreground)] mb-1">
                   {stat.value}
@@ -124,22 +125,22 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* 本周投递趋势 */}
+            {/* 投递趋势 */}
             <div className="lg:col-span-2 bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-[var(--foreground)] mb-6">
-                📊 本周投递趋势
+                📊 近7天投递趋势
               </h3>
               <div className="flex items-end justify-between gap-2 h-48">
-                {weeklyData.map((data, index) => (
+                {weeklyData.map((data) => (
                   <div key={data.day} className="flex-1 flex flex-col items-center">
                     <div className="w-full flex flex-col items-center gap-1 h-36 justify-end">
                       <div
-                        className="w-8 rounded-t-lg bg-[var(--primary)] transition-all"
-                        style={{ height: `${(data.applications / maxApplications) * 100}%` }}
+                        className="w-8 rounded-t-lg bg-[var(--primary)] transition-all min-h-[4px]"
+                        style={{ height: `${Math.max((data.applications / maxApplications) * 100, data.applications > 0 ? 10 : 0)}%` }}
                       />
                       <div
-                        className="w-8 rounded-t-lg bg-[var(--warning)] transition-all opacity-70"
-                        style={{ height: `${(data.interviews / maxApplications) * 50}%` }}
+                        className="w-8 rounded-t-lg bg-[var(--warning)] transition-all opacity-70 min-h-[4px]"
+                        style={{ height: `${Math.max((data.interviews / maxApplications) * 50, data.interviews > 0 ? 5 : 0)}%` }}
                       />
                     </div>
                     <span className="text-xs text-[var(--foreground-muted)] mt-2">
@@ -160,31 +161,31 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* 投递渠道 */}
+            {/* 投递阶段分布 */}
             <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-[var(--foreground)] mb-6">
-                📍 投递渠道分布
+                📍 投递阶段分布
               </h3>
               <div className="space-y-4">
-                {companySources.map((source, index) => (
-                  <div key={source.name}>
+                {statusDistribution.map((item, index) => (
+                  <div key={item.label}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-[var(--foreground)]">
-                        {source.name}
+                        {item.label}
                       </span>
                       <span className="text-sm text-[var(--foreground-muted)]">
-                        {source.count}家
+                        {item.count}家
                       </span>
                     </div>
                     <div className="h-2 bg-[var(--muted)] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${
-                          index === 0 ? 'bg-[var(--primary)]' :
-                          index === 1 ? 'bg-[var(--info)]' :
-                          index === 2 ? 'bg-[var(--warning)]' :
-                          'bg-[var(--accent)]'
+                          index === 0 ? 'bg-[var(--muted)]' :
+                          index === 1 ? 'bg-[var(--warning)]' :
+                          index === 2 ? 'bg-[var(--success)]' :
+                          'bg-[var(--error)]'
                         }`}
-                        style={{ width: `${source.percentage}%` }}
+                        style={{ width: `${Math.max(item.count / Math.max(applications.length, 1) * 100, item.count > 0 ? 10 : 0)}%` }}
                       />
                     </div>
                   </div>
@@ -214,6 +215,7 @@ export default function DashboardPage() {
                         ? 'bg-[var(--muted)]'
                         : 'bg-[var(--muted)]/50 opacity-60'
                     }`}
+                    title={achievement.description}
                   >
                     <span className="text-2xl mb-1">{achievement.icon}</span>
                     <span className={`text-xs text-center ${
@@ -235,36 +237,36 @@ export default function DashboardPage() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[var(--foreground)]">投递目标</span>
-                    <span className="text-sm text-[var(--foreground-muted)]">24/50</span>
+                    <span className="text-sm text-[var(--foreground-muted)]">{stats.totalApplications}/{goals.applications.target}</span>
                   </div>
                   <div className="h-3 bg-[var(--muted)] rounded-full overflow-hidden">
                     <div
                       className="h-full bg-[var(--primary)] rounded-full transition-all"
-                      style={{ width: '48%' }}
+                      style={{ width: `${goals.applications.progress}%` }}
                     />
                   </div>
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[var(--foreground)]">面试目标</span>
-                    <span className="text-sm text-[var(--foreground-muted)]">5/20</span>
+                    <span className="text-sm text-[var(--foreground-muted)]">{stats.completedInterviews}/{goals.interviews.target}</span>
                   </div>
                   <div className="h-3 bg-[var(--muted)] rounded-full overflow-hidden">
                     <div
                       className="h-full bg-[var(--warning)] rounded-full transition-all"
-                      style={{ width: '25%' }}
+                      style={{ width: `${goals.interviews.progress}%` }}
                     />
                   </div>
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[var(--foreground)]">回复率目标</span>
-                    <span className="text-sm text-[var(--foreground-muted)]">33%/40%</span>
+                    <span className="text-[var(--foreground)]">回复目标</span>
+                    <span className="text-sm text-[var(--foreground-muted)]">{Math.round(goals.replies.current)}/{goals.replies.target}</span>
                   </div>
                   <div className="h-3 bg-[var(--muted)] rounded-full overflow-hidden">
                     <div
                       className="h-full bg-[var(--success)] rounded-full transition-all"
-                      style={{ width: '82.5%' }}
+                      style={{ width: `${goals.replies.progress}%` }}
                     />
                   </div>
                 </div>
@@ -277,14 +279,8 @@ export default function DashboardPage() {
             <h3 className="text-lg font-semibold text-[var(--foreground)] mb-6">
               📈 投递状态分布
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {[
-                { label: '待筛选', count: 8, color: 'bg-[var(--muted)]', textColor: 'text-[var(--foreground)]' },
-                { label: '笔试中', count: 3, color: 'bg-[var(--info)]', textColor: 'text-white' },
-                { label: '面试中', count: 5, color: 'bg-[var(--warning)]', textColor: 'text-white' },
-                { label: '已通过', count: 2, color: 'bg-[var(--success)]', textColor: 'text-white' },
-                { label: '已拒绝', count: 6, color: 'bg-[var(--error)]', textColor: 'text-white' },
-              ].map((item) => (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {statusDistribution.map((item) => (
                 <div key={item.label} className="text-center">
                   <div className={`w-16 h-16 rounded-2xl ${item.color} flex items-center justify-center text-2xl font-bold mx-auto mb-2 ${item.textColor}`}>
                     {item.count}

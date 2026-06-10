@@ -1,34 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
 import Button from '@/components/UI/Button';
-
-interface TimelineItem {
-  id: number;
-  date: string;
-  fullDate: string;
-  time: string;
-  company: string;
-  position?: string;
-  action: string;
-  type: 'applied' | 'viewed' | 'interview' | 'offer' | 'rejected' | 'other';
-  description?: string;
-}
-
-const timelineData: TimelineItem[] = [
-  { id: 1, date: '今天', fullDate: '2026-06-08', time: '14:30', company: '字节跳动', position: '前端开发工程师', action: '收到面试邀请', type: 'interview', description: '技术面，定于明天下午2点' },
-  { id: 2, date: '今天', fullDate: '2026-06-08', time: '10:15', company: '美团', position: '前端研发', action: '简历被查看', type: 'viewed', description: 'HR 查看了你的简历' },
-  { id: 3, date: '昨天', fullDate: '2026-06-07', time: '16:20', company: '腾讯', position: 'Web前端开发', action: '面试安排更新', type: 'interview', description: 'HR面改期为周三上午10点' },
-  { id: 4, date: '昨天', fullDate: '2026-06-07', time: '09:30', company: '阿里巴巴', position: '前端工程师', action: '投递成功', type: 'applied' },
-  { id: 5, date: '2天前', fullDate: '2026-06-06', time: '15:00', company: '拼多多', position: '前端开发', action: '收到拒信', type: 'rejected', description: '感谢参与，已进入人才库' },
-  { id: 6, date: '3天前', fullDate: '2026-06-05', time: '11:00', company: '京东', position: '前端开发工程师', action: '投递成功', type: 'applied' },
-  { id: 7, date: '4天前', fullDate: '2026-06-04', time: '14:00', company: '网易', position: 'Web前端', action: '收到面试邀请', type: 'interview', description: '笔试通过，等待技术面通知' },
-  { id: 8, date: '5天前', fullDate: '2026-06-03', time: '10:00', company: '快手', position: '前端开发', action: '简历被查看', type: 'viewed' },
-  { id: 9, date: '1周前', fullDate: '2026-06-01', time: '16:30', company: '滴滴', position: '前端工程师', action: '投递成功', type: 'applied' },
-  { id: 10, date: '1周前', fullDate: '2026-06-01', time: '09:00', company: '美团', position: '前端研发', action: '收到Offer', type: 'offer', description: '薪资待遇：28k×15薪' },
-];
+import { useApplications, useInterviews, useActivities } from '@/context/DataContext';
 
 const typeConfig = {
   applied: { icon: '📮', color: 'bg-[var(--primary)]', textColor: 'text-[var(--primary)]', label: '投递' },
@@ -39,9 +15,102 @@ const typeConfig = {
   other: { icon: '📝', color: 'bg-[var(--secondary)]', textColor: 'text-[var(--secondary)]', label: '其他' },
 };
 
+// 将状态转换为类型
+const statusToType = (status: string) => {
+  switch (status) {
+    case 'offer': return 'offer';
+    case 'rejected': return 'rejected';
+    case 'interviewing': return 'interview';
+    default: return 'applied';
+  }
+};
+
 export default function TimelinePage() {
+  const { applications } = useApplications();
+  const { interviews } = useInterviews();
+  const { activities } = useActivities();
   const [filterType, setFilterType] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
+
+  // 从 activities 生成时间线数据
+  const timelineData = useMemo(() => {
+    const items: Array<{
+      id: string;
+      date: string;
+      fullDate: string;
+      time: string;
+      company: string;
+      position?: string;
+      action: string;
+      type: 'applied' | 'viewed' | 'interview' | 'offer' | 'rejected' | 'other';
+      description?: string;
+    }> = [];
+
+    // 从投递记录生成
+    applications.forEach(app => {
+      items.push({
+        id: `app-${app.id}`,
+        date: formatRelativeDate(app.appliedDate),
+        fullDate: app.appliedDate,
+        time: '09:00',
+        company: app.company,
+        position: app.position,
+        action: '投递成功',
+        type: statusToType(app.status) as any,
+      });
+    });
+
+    // 从面试记录生成
+    interviews.forEach(interview => {
+      items.push({
+        id: `int-${interview.id}`,
+        date: formatRelativeDate(interview.date),
+        fullDate: interview.date,
+        time: interview.time || '10:00',
+        company: interview.company,
+        position: interview.position,
+        action: interview.status === 'completed' ? '完成面试' : '面试待参加',
+        type: 'interview',
+        description: interview.notes,
+      });
+    });
+
+    // 从活动记录生成
+    activities.forEach(activity => {
+      let type: 'applied' | 'viewed' | 'interview' | 'offer' | 'rejected' | 'other' = 'other';
+      if (activity.action.includes('投递')) type = 'applied';
+      else if (activity.action.includes('Offer')) type = 'offer';
+      else if (activity.action.includes('面试')) type = 'interview';
+
+      items.push({
+        id: `act-${activity.id}`,
+        date: formatRelativeDate(activity.timestamp.split('T')[0]),
+        fullDate: activity.timestamp.split('T')[0],
+        time: activity.timestamp.split('T')[1]?.substring(0, 5) || '12:00',
+        company: activity.company || '',
+        position: activity.position,
+        action: activity.action,
+        type,
+      });
+    });
+
+    // 按日期排序，最新的在前
+    return items.sort((a, b) => b.fullDate.localeCompare(a.fullDate));
+  }, [applications, interviews, activities]);
+
+  // 格式化相对日期
+  function formatRelativeDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return '今天';
+    if (diffDays === 1) return '昨天';
+    if (diffDays < 7) return `${diffDays}天前`;
+    if (diffDays < 14) return '1周前';
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}周前`;
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+  }
 
   const filteredData = filterType === 'all'
     ? timelineData
@@ -61,7 +130,7 @@ export default function TimelinePage() {
     <AppLayout>
       <Header
         title="时间线"
-        subtitle="所有投递动态一览"
+        subtitle={`${timelineData.length} 条动态记录`}
         actions={
           <div className="flex items-center gap-2">
             <div className="inline-flex bg-[var(--muted)] rounded-xl p-1">
@@ -109,6 +178,7 @@ export default function TimelinePage() {
             {Object.entries(stats).map(([key, value]) => {
               if (key === 'total') return null;
               const config = typeConfig[key as keyof typeof typeConfig];
+              if (!config) return null;
               return (
                 <button
                   key={key}
@@ -127,14 +197,20 @@ export default function TimelinePage() {
             })}
           </div>
 
-          {viewMode === 'timeline' ? (
+          {filteredData.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4">📋</div>
+              <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">暂无动态记录</h3>
+              <p className="text-[var(--foreground-muted)]">开始添加投递记录，这里会显示你的所有动态</p>
+            </div>
+          ) : viewMode === 'timeline' ? (
             /* 时间线视图 */
             <div className="relative">
               <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-[var(--border)]" />
 
               <div className="space-y-6">
                 {filteredData.map((item, index) => {
-                  const config = typeConfig[item.type];
+                  const config = typeConfig[item.type] || typeConfig.other;
                   const isFirst = index === 0;
 
                   return (
@@ -178,7 +254,7 @@ export default function TimelinePage() {
             /* 列表视图 */
             <div className="space-y-3">
               {filteredData.map((item) => {
-                const config = typeConfig[item.type];
+                const config = typeConfig[item.type] || typeConfig.other;
                 return (
                   <div
                     key={item.id}
@@ -207,11 +283,6 @@ export default function TimelinePage() {
               })}
             </div>
           )}
-
-          {/* 加载更多 */}
-          <div className="mt-8 text-center">
-            <Button variant="secondary">加载更多</Button>
-          </div>
         </div>
       </div>
     </AppLayout>
