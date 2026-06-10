@@ -115,7 +115,8 @@ src/
 
 ## 🔧 数据存储
 
-所有数据存储在浏览器 localStorage 中：
+### 本地存储
+所有数据默认存储在浏览器 localStorage 中：
 - `campus_applications` - 投递记录
 - `campus_interviews` - 面试记录
 - `campus_contacts` - 联系人
@@ -127,6 +128,34 @@ src/
 - `campus_resumes` - 简历
 - `campus_user_profile` - 用户资料
 - `campus_chat_history` - AI聊天记录
+
+### 云端同步 (可选)
+配置 Supabase 可实现跨设备数据同步：
+
+1. 在 [.env.example](.env.example) 中设置环境变量：
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+2. 在 Vercel 项目设置中添加对应的环境变量
+
+3. 在 Supabase 创建以下数据表：
+   - `applications` - 投递记录
+   - `interviews` - 面试记录
+   - `contacts` - 联系人
+   - `offers` - Offer记录
+
+## 🤖 AI 功能
+
+应用内置 AI 助手功能，需要配置 Kimi API (Moonshot AI)：
+
+1. 在 [Moonshot 控制台](https://platform.moonshot.cn/) 注册账号
+2. 创建 API Key
+3. 在设置页面填入 API Key，或设置环境变量：
+   ```
+   NEXT_PUBLIC_KIMI_API_KEY=your_kimi_api_key
+   ```
 
 ## 📄 License
 
