@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
 import Button from '@/components/UI/Button';
 import { useUserProfile, useDataManagement, useStats } from '@/context/DataContext';
+import { useSupabaseSync } from '@/hooks/useSupabaseSync';
 
 export default function SettingsPage() {
   const { userProfile, update } = useUserProfile();
   const { exportData, importData, clearAllData } = useDataManagement();
   const { stats } = useStats();
+  const { isConfigured, lastSynced, isSyncing, error } = useSupabaseSync();
 
   const [noResponseDays, setNoResponseDays] = useState(userProfile.settings?.noResponseDays || 7);
   const [quietHoursStart, setQuietHoursStart] = useState(userProfile.settings?.quietHoursStart || '22:00');
@@ -453,6 +455,67 @@ export default function SettingsPage() {
                   </select>
                 </label>
               </div>
+            </div>
+          </div>
+
+          {/* 云端同步 */}
+          <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">
+              ☁️ 云端同步 (Supabase)
+            </h3>
+            <div className="space-y-4">
+              <div className="p-4 bg-[var(--muted)] rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-[var(--foreground)]">同步状态</p>
+                    <p className="text-sm text-[var(--foreground-muted)]">
+                      {isConfigured ? '✅ 已配置' : '⚠️ 未配置'}
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-sm ${
+                    isConfigured ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'
+                  }`}>
+                    {isConfigured ? '就绪' : '待配置'}
+                  </span>
+                </div>
+                {lastSynced && (
+                  <p className="text-xs text-[var(--foreground-muted)] mt-2">
+                    上次同步: {lastSynced.toLocaleString('zh-CN')}
+                  </p>
+                )}
+              </div>
+
+              {!isConfigured ? (
+                <div className="p-4 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-800 mb-2">📋 配置步骤:</p>
+                  <ol className="text-sm text-blue-600 space-y-1 list-decimal list-inside">
+                    <li>在 <a href="https://supabase.com" target="_blank" className="underline">supabase.com</a> 创建项目</li>
+                    <li>获取 Project URL 和 anon public key</li>
+                    <li>在 Vercel 环境变量中设置:
+                      <code className="block bg-blue-100 px-2 py-1 rounded mt-1 text-xs">
+                        NEXT_PUBLIC_SUPABASE_URL=your_url<br/>
+                        NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key
+                      </code>
+                    </li>
+                    <li>重新部署后即可使用云端同步</li>
+                  </ol>
+                </div>
+              ) : (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    alert('同步功能将在下次更新中启用');
+                  }}
+                  className="w-full"
+                  disabled={isSyncing}
+                >
+                  {isSyncing ? '同步中...' : '🔄 立即同步'}
+                </Button>
+              )}
+
+              {error && (
+                <p className="text-sm text-red-500">{error}</p>
+              )}
             </div>
           </div>
 
