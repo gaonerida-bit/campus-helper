@@ -1,7 +1,7 @@
 'use client';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   children: React.ReactNode;
 }
@@ -13,6 +13,8 @@ const variantStyles = {
     'bg-[var(--muted)] text-[var(--foreground)] hover:bg-[var(--muted-dark)]',
   ghost:
     'bg-transparent text-[var(--foreground-light)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]',
+  danger:
+    'bg-red-500 text-white hover:bg-red-600 shadow-sm',
 };
 
 const sizeStyles = {

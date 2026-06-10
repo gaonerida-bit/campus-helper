@@ -46,6 +46,16 @@ const companyProfiles: Record<string, CompanyProfile> = {
     benefits: ['五险一金', '餐补', '交通补贴', '定期体检', '团建费'],
     createdAt: new Date().toISOString(),
   },
+  '阿里巴巴': {
+    id: 'alibaba',
+    name: '阿里巴巴',
+    industry: '互联网/电商',
+    size: '200000+人',
+    description: '全球领先的电子商务企业，涵盖淘宝、天猫、阿里云等业务',
+    culture: '客户第一、团队合作、拥抱变化、诚信、激情、敬业',
+    benefits: ['六险一金', '股票期权', '带薪年假', '员工购房贷款', '免费健身房'],
+    createdAt: new Date().toISOString(),
+  },
 };
 
 // 添加/编辑联系人表单
@@ -189,12 +199,14 @@ function ContactDetailModal({
   contact,
   onClose,
   onEdit,
-  onViewCompany
+  onViewCompany,
+  onDelete
 }: {
   contact: AppContact;
   onClose: () => void;
   onEdit: () => void;
   onViewCompany: (company: string) => void;
+  onDelete: () => void;
 }) {
   const config = relationConfig[contact.relationship] || relationConfig['其他'];
   const hasCompanyProfile = companyProfiles[contact.company];
@@ -266,6 +278,7 @@ function ContactDetailModal({
 
             <div className="flex gap-2 pt-2">
               <Button variant="secondary" onClick={onEdit} className="flex-1">编辑</Button>
+              <Button variant="danger" onClick={onDelete} className="flex-1">🗑️ 删除</Button>
               {hasCompanyProfile && (
                 <Button onClick={() => onViewCompany(contact.company)} className="flex-1">
                   🏢 查看公司
@@ -351,6 +364,7 @@ function CompanyProfileModal({
 
 export default function ContactsPage() {
   const { contacts, add, update, remove } = useContacts();
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const { companyProfiles: storedProfiles } = useCompanyProfiles();
   const [filter, setFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -391,6 +405,14 @@ export default function ContactsPage() {
   const handleViewCompany = (company: string) => {
     setSelectedContact(null);
     setSelectedCompany(company);
+  };
+
+  const handleDeleteContact = (id: string) => {
+    if (confirm('确定要删除这个联系人吗？')) {
+      remove(id);
+      setSelectedContact(null);
+      setDeleteConfirmId(null);
+    }
   };
 
   return (
@@ -581,6 +603,7 @@ export default function ContactsPage() {
           onClose={() => setSelectedContact(null)}
           onEdit={() => handleEditContact(selectedContact)}
           onViewCompany={handleViewCompany}
+          onDelete={() => handleDeleteContact(selectedContact.id)}
         />
       )}
 

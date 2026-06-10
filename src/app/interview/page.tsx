@@ -5,6 +5,7 @@ import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
 import Button from '@/components/UI/Button';
 import { useInterviews, useQuestions, Interview as AppInterview } from '@/context/DataContext';
+import AIMockInterview from '@/components/AI/AIMockInterview';
 
 interface InterviewQuestion {
   id: number;
@@ -392,6 +393,13 @@ export default function InterviewPage() {
   const [isAddReviewOpen, setIsAddReviewOpen] = useState(false);
   const [localQuestions, setLocalQuestions] = useState<InterviewQuestion[]>(questionBank);
   const [records, setRecords] = useState<InterviewRecord[]>(interviewRecords);
+  const [showAIMock, setShowAIMock] = useState(false);
+  const [mockConfig, setMockConfig] = useState({
+    company: '字节跳动',
+    position: '前端开发工程师',
+    type: '技术一面',
+    duration: 30,
+  });
 
   // Combine context questions with local questions
   const questions = contextQuestions.length > 0
@@ -897,25 +905,35 @@ export default function InterviewPage() {
                   <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                     选择目标公司
                   </label>
-                  <select className="w-full px-4 py-3 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]">
+                  <select
+                    value={mockConfig.company}
+                    onChange={(e) => setMockConfig({ ...mockConfig, company: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  >
                     <option value="">请选择公司</option>
                     <option value="字节跳动">字节跳动</option>
                     <option value="腾讯">腾讯</option>
                     <option value="阿里巴巴">阿里巴巴</option>
                     <option value="美团">美团</option>
-                    <option value="自定义">自定义输入</option>
+                    <option value="京东">京东</option>
+                    <option value="百度">百度</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                    选择面试类型
+                    面试类型
                   </label>
                   <div className="grid grid-cols-3 gap-3">
                     {['技术一面', '技术二面', 'HR面'].map((type) => (
                       <button
                         key={type}
-                        className="px-4 py-3 rounded-xl bg-[var(--muted)] text-sm text-[var(--foreground-light)] hover:bg-[var(--primary)] hover:text-white transition-smooth"
+                        onClick={() => setMockConfig({ ...mockConfig, type })}
+                        className={`px-4 py-3 rounded-xl text-sm transition-smooth ${
+                          mockConfig.type === type
+                            ? 'bg-[var(--primary)] text-white'
+                            : 'bg-[var(--muted)] text-[var(--foreground-light)] hover:bg-[var(--muted-dark)]'
+                        }`}
                       >
                         {type}
                       </button>
@@ -928,19 +946,29 @@ export default function InterviewPage() {
                     面试时长
                   </label>
                   <div className="grid grid-cols-4 gap-3">
-                    {['15分钟', '30分钟', '45分钟', '1小时'].map((duration) => (
+                    {[
+                      { label: '15分钟', value: 15 },
+                      { label: '30分钟', value: 30 },
+                      { label: '45分钟', value: 45 },
+                      { label: '1小时', value: 60 },
+                    ].map(({ label, value }) => (
                       <button
-                        key={duration}
-                        className="px-4 py-3 rounded-xl bg-[var(--muted)] text-sm text-[var(--foreground-light)] hover:bg-[var(--primary)] hover:text-white transition-smooth"
+                        key={value}
+                        onClick={() => setMockConfig({ ...mockConfig, duration: value })}
+                        className={`px-4 py-3 rounded-xl text-sm transition-smooth ${
+                          mockConfig.duration === value
+                            ? 'bg-[var(--primary)] text-white'
+                            : 'bg-[var(--muted)] text-[var(--foreground-light)] hover:bg-[var(--muted-dark)]'
+                        }`}
                       >
-                        {duration}
+                        {label}
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <Button className="w-full py-4 text-lg">
+              <Button className="w-full py-4 text-lg" onClick={() => setShowAIMock(true)}>
                 🚀 开始 AI 模拟面试
               </Button>
 
@@ -951,7 +979,7 @@ export default function InterviewPage() {
 
             <div className="mt-6 bg-[var(--muted)] rounded-xl p-4">
               <p className="text-sm text-[var(--foreground-light)]">
-                📁 已完成 3 次模拟面试，<Button variant="ghost" size="sm" className="inline">查看历史</Button>
+                💡 提示：在设置页面配置 Kimi API Key 后即可使用 AI 模拟面试功能
               </p>
             </div>
           </div>
@@ -1001,6 +1029,17 @@ export default function InterviewPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* AI 模拟面试 */}
+      {showAIMock && (
+        <AIMockInterview
+          company={mockConfig.company}
+          position={mockConfig.position}
+          interviewType={mockConfig.type}
+          duration={mockConfig.duration}
+          onClose={() => setShowAIMock(false)}
+        />
       )}
     </AppLayout>
   );
