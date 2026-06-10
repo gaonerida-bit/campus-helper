@@ -11,6 +11,14 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "校招助手",
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "default",
+    "apple-mobile-web-app-title": "校招助手",
+    "msapplication-TileColor": "#8B9A7D",
+    "msapplication-tap-highlight": "no",
+  },
 };
 
 export const viewport: Viewport = {
