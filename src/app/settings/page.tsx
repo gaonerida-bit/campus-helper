@@ -1,17 +1,76 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
+import Button from '@/components/UI/Button';
+import { useUserProfile, useDataManagement, useStats } from '@/context/DataContext';
 
 export default function SettingsPage() {
-  const [noResponseDays, setNoResponseDays] = useState(7);
-  const [quietHoursStart, setQuietHoursStart] = useState('22:00');
-  const [quietHoursEnd, setQuietHoursEnd] = useState('08:00');
-  const [monthlyBudget, setMonthlyBudget] = useState(100);
-  const [targetApplications, setTargetApplications] = useState(50);
-  const [targetInterviews, setTargetInterviews] = useState(20);
-  const [localBackupPath] = useState('E:\\AI agent 编码\\校招助手开发');
+  const { userProfile, update } = useUserProfile();
+  const { exportData, importData, clearAllData } = useDataManagement();
+  const { stats } = useStats();
+
+  const [noResponseDays, setNoResponseDays] = useState(userProfile.settings?.noResponseDays || 7);
+  const [quietHoursStart, setQuietHoursStart] = useState(userProfile.settings?.quietHoursStart || '22:00');
+  const [quietHoursEnd, setQuietHoursEnd] = useState(userProfile.settings?.quietHoursEnd || '08:00');
+  const [monthlyBudget, setMonthlyBudget] = useState(userProfile.settings?.monthlyBudget || 100);
+  const [targetApplications, setTargetApplications] = useState(userProfile.goals?.applications || 50);
+  const [targetInterviews, setTargetInterviews] = useState(userProfile.goals?.interviews || 20);
+  const [name, setName] = useState(userProfile.name);
+  const [title, setTitle] = useState(userProfile.title);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSaveProfile = () => {
+    update({ name, title });
+  };
+
+  const handleSaveGoals = () => {
+    update({
+      goals: {
+        applications: targetApplications,
+        interviews: targetInterviews,
+        replies: userProfile.goals?.replies || 30,
+      },
+    });
+  };
+
+  const handleSaveSettings = () => {
+    update({
+      settings: {
+        ...userProfile.settings,
+        noResponseDays,
+        quietHoursStart,
+        quietHoursEnd,
+        monthlyBudget,
+      },
+    });
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      await importData(file);
+    } catch {
+      alert('导入失败：无效的文件格式');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const themes = [
+    { id: 'green', name: '莫兰迪绿调', color: '#8B9A7D' },
+    { id: 'brown', name: '莫兰迪棕调', color: '#A78B7D' },
+    { id: 'blue', name: '莫兰迪蓝调', color: '#7D8BA7' },
+    { id: 'yellow', name: '莫兰迪黄调', color: '#A7A47D' },
+  ];
+
+  const currentTheme = themes.find(t => t.id === userProfile.settings?.theme) || themes[0];
 
   return (
     <AppLayout>
@@ -27,15 +86,12 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-2xl font-semibold">
-                  N
+                  {name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="font-medium text-[var(--foreground)]">Nerida</p>
-                  <p className="text-sm text-[var(--foreground-muted)]">校招求职者</p>
+                  <p className="font-medium text-[var(--foreground)]">{name}</p>
+                  <p className="text-sm text-[var(--foreground-muted)]">{title}</p>
                 </div>
-                <button className="ml-auto px-4 py-2 rounded-xl bg-[var(--muted)] text-[var(--foreground-light)] hover:bg-[var(--muted-dark)] transition-smooth text-sm">
-                  修改头像
-                </button>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -44,7 +100,8 @@ export default function SettingsPage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="Nerida"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     className="w-full px-4 py-2 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                   />
                 </div>
@@ -54,11 +111,13 @@ export default function SettingsPage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="前端开发工程师"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
                     className="w-full px-4 py-2 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                   />
                 </div>
               </div>
+              <Button onClick={handleSaveProfile} className="w-full">保存修改</Button>
             </div>
           </div>
 
@@ -98,6 +157,14 @@ export default function SettingsPage() {
                   <span className="text-[var(--foreground-muted)]">场</span>
                 </div>
               </div>
+              <div className="p-3 bg-[var(--muted)] rounded-xl">
+                <p className="text-sm text-[var(--foreground-light)]">当前进度</p>
+                <div className="flex items-center gap-4 mt-2">
+                  <span className="text-sm">投递 {stats.totalApplications}/{targetApplications}</span>
+                  <span className="text-sm">面试 {stats.completedInterviews}/{targetInterviews}</span>
+                </div>
+              </div>
+              <Button onClick={handleSaveGoals} className="w-full">保存目标</Button>
             </div>
           </div>
 
@@ -116,6 +183,7 @@ export default function SettingsPage() {
                   placeholder="sk-..."
                   className="w-full px-4 py-2 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 />
+                <p className="text-xs text-[var(--foreground-muted)] mt-1">用于调用 Kimi AI API 提供智能助手功能</p>
               </div>
               <div className="flex items-center justify-between">
                 <div>
@@ -136,6 +204,7 @@ export default function SettingsPage() {
                 <div className="h-full bg-[var(--primary)] rounded-full" style={{ width: '23%' }} />
               </div>
               <p className="text-sm text-[var(--foreground-muted)]">本月已用 ¥23（23%）</p>
+              <Button onClick={handleSaveSettings} className="w-full">保存设置</Button>
             </div>
           </div>
 
@@ -210,70 +279,98 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
-
-              <div className="pt-4 border-t border-[var(--border)]">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <div>
-                    <span className="font-medium text-[var(--foreground)]">联系人久未联系提醒</span>
-                    <p className="text-sm text-[var(--foreground-muted)]">超过设定天数未联系时提醒</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      defaultValue={30}
-                      min={7}
-                      max={90}
-                      className="w-20 px-3 py-2 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm text-center focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                    />
-                    <span className="text-[var(--foreground-muted)]">天</span>
-                  </div>
-                </label>
-              </div>
             </div>
           </div>
 
-          {/* 数据同步 */}
+          {/* 数据管理 */}
           <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">
-              ☁️ 数据同步
+              💾 数据管理
             </h3>
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-[var(--muted)] rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center">
-                    <span className="text-xl">🔗</span>
+              <div className="p-4 bg-[var(--muted)] rounded-xl">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-[var(--primary)]">{stats.totalApplications}</p>
+                    <p className="text-xs text-[var(--foreground-muted)]">投递</p>
                   </div>
                   <div>
-                    <p className="font-medium text-[var(--foreground)]">Supabase 云端</p>
-                    <p className="text-sm text-[var(--success)]">已连接 · 上次同步 5分钟前</p>
+                    <p className="text-2xl font-bold text-[var(--warning)]">{stats.upcomingInterviews}</p>
+                    <p className="text-xs text-[var(--foreground-muted)]">面试</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-[var(--info)]">{stats.totalContacts}</p>
+                    <p className="text-xs text-[var(--foreground-muted)]">联系人</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-[var(--success)]">{stats.totalOffers}</p>
+                    <p className="text-xs text-[var(--foreground-muted)]">Offer</p>
                   </div>
                 </div>
-                <button className="px-4 py-2 rounded-xl bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] transition-smooth text-sm">
-                  立即同步
-                </button>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-[var(--muted)] rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center">
-                    <span className="text-xl">💾</span>
+                    <span className="text-xl">📤</span>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-[var(--foreground)]">本地备份</p>
-                    <p className="text-sm text-[var(--foreground-muted)] break-all">{localBackupPath}</p>
+                  <div>
+                    <p className="font-medium text-[var(--foreground)]">导出数据</p>
+                    <p className="text-sm text-[var(--foreground-muted)]">下载 JSON 格式备份</p>
                   </div>
                 </div>
-                <button className="px-4 py-2 rounded-xl bg-[var(--secondary)] text-[var(--foreground)] hover:bg-[var(--secondary-light)] transition-smooth text-sm">
-                  手动备份
-                </button>
+                <Button variant="secondary" onClick={exportData}>
+                  导出
+                </Button>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-[var(--foreground)]">自动备份</p>
-                  <p className="text-sm text-[var(--foreground-muted)]">每天自动同步到本地</p>
+              <div className="flex items-center justify-between p-4 bg-[var(--muted)] rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center">
+                    <span className="text-xl">📥</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-[var(--foreground)]">导入数据</p>
+                    <p className="text-sm text-[var(--foreground-muted)]">从备份文件恢复</p>
+                  </div>
                 </div>
-                <input type="checkbox" defaultChecked className="w-5 h-5 rounded accent-[var(--primary)]" />
+                <div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImport}
+                    accept=".json"
+                    className="hidden"
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isImporting}
+                  >
+                    {isImporting ? '导入中...' : '导入'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-[var(--border)]">
+                <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                      <span className="text-xl">⚠️</span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-red-600">清除所有数据</p>
+                      <p className="text-sm text-red-400">不可恢复，请先导出备份</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={clearAllData}
+                    className="bg-red-100 text-red-600 hover:bg-red-200 border-0"
+                  >
+                    清除
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -287,17 +384,28 @@ export default function SettingsPage() {
               <div>
                 <p className="font-medium text-[var(--foreground)] mb-3">配色方案</p>
                 <div className="flex gap-3">
-                  <button className="w-12 h-12 rounded-xl bg-[#8B9A7D] ring-2 ring-offset-2 ring-[var(--primary)]" title="莫兰迪绿调" />
-                  <button className="w-12 h-12 rounded-xl bg-[#A78B7D]" title="莫兰迪棕调" />
-                  <button className="w-12 h-12 rounded-xl bg-[#7D8BA7]" title="莫兰迪蓝调" />
-                  <button className="w-12 h-12 rounded-xl bg-[#A7A47D]" title="莫兰迪黄调" />
+                  {themes.map((theme) => (
+                    <button
+                      key={theme.id}
+                      className={`w-12 h-12 rounded-xl transition-smooth ${
+                        currentTheme.id === theme.id ? 'ring-2 ring-offset-2 ring-[var(--primary)]' : ''
+                      }`}
+                      style={{ backgroundColor: theme.color }}
+                      title={theme.name}
+                      onClick={() => update({ settings: { ...userProfile.settings, theme: theme.id } })}
+                    />
+                  ))}
                 </div>
               </div>
 
               <div className="pt-4 border-t border-[var(--border)]">
                 <label className="flex items-center justify-between cursor-pointer">
                   <span className="font-medium text-[var(--foreground)]">默认视图</span>
-                  <select className="px-3 py-2 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none cursor-pointer">
+                  <select
+                    value={userProfile.settings?.defaultView || 'kanban'}
+                    onChange={(e) => update({ settings: { ...userProfile.settings, defaultView: e.target.value } })}
+                    className="px-3 py-2 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none cursor-pointer"
+                  >
                     <option value="kanban">看板视图</option>
                     <option value="table">表格视图</option>
                     <option value="card">卡片视图</option>

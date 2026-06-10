@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
+import { useStats, useActivities } from '@/context/DataContext';
 
 interface StatCard {
   title: string;

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "校招助手 - 秋招管理工具",
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className="min-h-full flex flex-col bg-[var(--background)]">
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
