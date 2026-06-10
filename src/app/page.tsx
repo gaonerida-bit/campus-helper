@@ -18,11 +18,12 @@ const goals = {
 const quickActions = [
   { id: 1, icon: '📤', title: '添加投递', href: '/applications/new', color: 'bg-[var(--primary)]' },
   { id: 2, icon: '📅', title: '记录面试', href: '/interview', color: 'bg-[var(--warning)]' },
-  { id: 3, icon: '🤝', title: '添加联系人', href: '/contacts', color: 'bg-[var(--info)]' },
-  { id: 4, icon: '📝', title: '笔试题库', href: '/exam', color: 'bg-[var(--success)]' },
-  { id: 5, icon: '📄', title: '简历管理', href: '/resume', color: 'bg-[var(--accent)]' },
-  { id: 6, icon: '🏆', title: 'Offer对比', href: '/offer', color: 'bg-purple-500' },
-  { id: 7, icon: '🤖', title: 'AI模拟面试', href: '/interview', color: 'bg-pink-500' },
+  { id: 3, icon: '📊', title: '数据看板', href: '/dashboard', color: 'bg-purple-500' },
+  { id: 4, icon: '🤝', title: '添加联系人', href: '/contacts', color: 'bg-[var(--info)]' },
+  { id: 5, icon: '📝', title: '笔试题库', href: '/exam', color: 'bg-[var(--success)]' },
+  { id: 6, icon: '📄', title: '简历管理', href: '/resume', color: 'bg-[var(--accent)]' },
+  { id: 7, icon: '🏆', title: 'Offer对比', href: '/offer', color: 'bg-amber-500' },
+  { id: 8, icon: '🤖', title: 'AI模拟面试', href: '/interview', color: 'bg-pink-500' },
 ];
 
 const weeklySchedule = [
