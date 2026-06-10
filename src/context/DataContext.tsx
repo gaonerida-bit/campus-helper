@@ -16,6 +16,7 @@ export interface Application {
   notes?: string;
   hrContact?: string;
   source?: string;
+  url?: string; // 投递原始链接
   createdAt: string;
   updatedAt: string;
 }

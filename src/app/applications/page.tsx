@@ -56,6 +56,7 @@ function AddApplicationForm({
     hrContact: string;
     notes: string;
     source: string;
+    url: string;
   }>({
     company: '',
     position: '',
@@ -67,6 +68,7 @@ function AddApplicationForm({
     hrContact: '',
     notes: '',
     source: '',
+    url: '',
   });
 
   const handleSubmit = () => {
@@ -123,6 +125,17 @@ function AddApplicationForm({
           />
         </div>
       </div>
+      <div>
+        <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">🌐 投递链接</label>
+        <input
+          type="url"
+          value={formData.url}
+          onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+          className="w-full px-4 py-2.5 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-[var(--foreground)]"
+          placeholder="https://jobs.bytedance.com/..."
+        />
+        <p className="text-xs text-[var(--foreground-muted)] mt-1">粘贴招聘帖子的链接，快速跳转查看详情</p>
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">当前阶段</label>
@@ -177,6 +190,10 @@ function AddApplicationForm({
 function KanbanView({ apps }: { apps: AppApplication[] }) {
   const columns: ApplicationStatus[] = ['pending', 'interviewing', 'offer', 'rejected'];
 
+  const handleJump = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
       {columns.map((status) => {
@@ -217,6 +234,17 @@ function KanbanView({ apps }: { apps: AppApplication[] }) {
                     <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
                       <span>📍 {app.location || '-'}</span>
                     </div>
+                    {app.url && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleJump(app.url!);
+                        }}
+                        className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-medium hover:bg-[var(--primary)]/90 transition-smooth"
+                      >
+                        🔗 一键跳转
+                      </button>
+                    )}
                     <div className="mt-2 text-xs text-[var(--foreground-muted)]">
                       {app.stage}
                     </div>
@@ -233,6 +261,10 @@ function KanbanView({ apps }: { apps: AppApplication[] }) {
 
 // 表格视图
 function TableView({ apps }: { apps: AppApplication[] }) {
+  const handleJump = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -244,6 +276,7 @@ function TableView({ apps }: { apps: AppApplication[] }) {
             <th className="text-left py-3 px-4 text-sm font-semibold text-[var(--foreground)]">地点</th>
             <th className="text-left py-3 px-4 text-sm font-semibold text-[var(--foreground)]">阶段</th>
             <th className="text-left py-3 px-4 text-sm font-semibold text-[var(--foreground)]">状态</th>
+            <th className="text-left py-3 px-4 text-sm font-semibold text-[var(--foreground)]">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -253,7 +286,7 @@ function TableView({ apps }: { apps: AppApplication[] }) {
             return (
               <tr
                 key={app.id}
-                className="border-b border-[var(--border)] hover:bg-[var(--muted)] transition-smooth cursor-pointer"
+                className="border-b border-[var(--border)] hover:bg-[var(--muted)] transition-smooth"
               >
                 <td className="py-3 px-4">
                   <span className="font-medium text-[var(--foreground)]">{app.company}</span>
@@ -267,6 +300,18 @@ function TableView({ apps }: { apps: AppApplication[] }) {
                     {label}
                   </span>
                 </td>
+                <td className="py-3 px-4">
+                  {app.url ? (
+                    <button
+                      onClick={() => handleJump(app.url!)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-medium hover:bg-[var(--primary)]/90 transition-smooth"
+                    >
+                      🔗 跳转
+                    </button>
+                  ) : (
+                    <span className="text-[var(--foreground-muted)] text-xs">-</span>
+                  )}
+                </td>
               </tr>
             );
           })}
@@ -278,6 +323,10 @@ function TableView({ apps }: { apps: AppApplication[] }) {
 
 // 卡片视图
 function CardView({ apps }: { apps: AppApplication[] }) {
+  const handleJump = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {apps.map((app) => {
@@ -311,6 +360,17 @@ function CardView({ apps }: { apps: AppApplication[] }) {
                 <span className="text-[var(--foreground-light)]">{app.stage}</span>
               </div>
             </div>
+            {app.url && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleJump(app.url!);
+                }}
+                className="w-full mb-3 flex items-center justify-center gap-1.5 px-3 py-2 bg-[var(--primary)] text-white rounded-xl text-sm font-medium hover:bg-[var(--primary)]/90 transition-smooth"
+              >
+                🔗 一键跳转查看详情
+              </button>
+            )}
             <div className="flex items-center justify-between pt-3 border-t border-[var(--border)]">
               <span className={`px-2 py-1 rounded-lg text-xs font-medium ${bgColor} ${color}`}>
                 {label}
