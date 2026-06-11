@@ -4,7 +4,6 @@ import { useState } from 'react';
 import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
 import Button from '@/components/UI/Button';
-import { useCompanyProfiles } from '@/context/DataContext';
 
 interface PoolJob {
   id: string;
@@ -22,84 +21,8 @@ interface PoolJob {
   jdPreview: string;
 }
 
-// 模拟数据
-const poolJobs: PoolJob[] = [
-  {
-    id: '1',
-    company: '字节跳动',
-    position: '前端开发工程师',
-    salary: '400-600/天',
-    location: '北京',
-    deadline: '2024-03-15',
-    source: 'Boss直聘',
-    sourceUrl: 'https://www.zhipin.com',
-    tags: ['大厂', '急招', '前端'],
-    hasTracked: true,
-    savedAt: '2024-01-10',
-    notes: '优先考虑有React经验的同学',
-    jdPreview: '负责公司内部管理系统前端开发，使用React技术栈，要求熟练掌握React、TypeScript...',
-  },
-  {
-    id: '2',
-    company: '美团',
-    position: '前端研发工程师',
-    salary: '350-500/天',
-    location: '北京',
-    deadline: '2024-03-20',
-    source: '实习僧',
-    sourceUrl: 'https://www.shixiseng.com',
-    tags: ['大厂', '可转正'],
-    hasTracked: false,
-    savedAt: '2024-01-12',
-    notes: '需要在线笔试',
-    jdPreview: '参与美团各业务线前端开发工作，包括用户端、商户端管理后台等...',
-  },
-  {
-    id: '3',
-    company: 'Shopee',
-    position: 'Web前端工程师',
-    salary: '450-650/天',
-    location: '深圳',
-    deadline: '2024-03-25',
-    source: '牛客网',
-    sourceUrl: 'https://www.nowcoder.com',
-    tags: ['跨境电商', '英语'],
-    hasTracked: true,
-    savedAt: '2024-01-08',
-    notes: '英文面试',
-    jdPreview: '负责Shopee电商平台前端开发，涉及商品详情页、购物车、订单系统等核心模块...',
-  },
-  {
-    id: '4',
-    company: '蚂蚁集团',
-    position: '前端开发实习生',
-    salary: '400-550/天',
-    location: '杭州',
-    deadline: '2024-04-01',
-    source: '官网',
-    sourceUrl: 'https://careers.antgroup.com',
-    tags: ['大厂', '金融科技'],
-    hasTracked: false,
-    savedAt: '2024-01-15',
-    notes: '安全部门',
-    jdPreview: '参与蚂蚁安全产品前端研发，涉及风控系统、可视化大屏等...',
-  },
-  {
-    id: '5',
-    company: '小米',
-    position: '前端开发工程师',
-    salary: '300-450/天',
-    location: '北京',
-    deadline: '2024-03-30',
-    source: '前程无忧',
-    sourceUrl: 'https://www.51job.com',
-    tags: ['IoT', '周末双休'],
-    hasTracked: true,
-    savedAt: '2024-01-05',
-    notes: 'IoT部门',
-    jdPreview: '负责小米IoT平台前端开发，参与智能家居控制中心、小米有品等业务...',
-  },
-];
+// 不再使用模拟数据 - 用户数据完全由自己添加
+const EMPTY_POOL: PoolJob[] = [];
 
 // 来源平台图标映射
 const sourceIcons: Record<string, string> = {
@@ -373,7 +296,7 @@ function AddJobForm({
 }
 
 export default function PoolPage() {
-  const [jobs, setJobs] = useState<PoolJob[]>(poolJobs);
+  const [jobs, setJobs] = useState<PoolJob[]>(EMPTY_POOL);
   const [filter, setFilter] = useState<'all' | 'urgent' | 'tracked'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedJob, setSelectedJob] = useState<PoolJob | null>(null);
