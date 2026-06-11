@@ -456,11 +456,16 @@ function loadFromStorage(): Partial<AppState> {
   if (typeof window === 'undefined') return {};
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      return JSON.parse(data);
+    if (data && data !== 'null' && data !== 'undefined') {
+      const parsed = JSON.parse(data);
+      // Check if it's a valid state object with arrays
+      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.applications)) {
+        return parsed;
+      }
     }
 
-    // First visit - load sample data
+    // Only load sample data if INIT_KEY doesn't exist AND no valid data
+    // This prevents sample data from reloading after user deletes items
     if (!localStorage.getItem(INIT_KEY)) {
       const now = new Date().toISOString();
       const sampleData: Partial<AppState> = {
