@@ -47,6 +47,10 @@ export class KimiService {
     this.apiKey = apiKey;
   }
 
+  getApiKey(): string {
+    return this.apiKey;
+  }
+
   setModel(model: string): void {
     this.model = model;
   }
@@ -214,6 +218,14 @@ export function getKimiService(): KimiService {
       ? localStorage.getItem('kimi-api-key') || ''
       : '';
     kimiService = new KimiService({ apiKey });
+  } else {
+    // Always check if API key was updated via localStorage
+    const apiKey = typeof window !== 'undefined'
+      ? localStorage.getItem('kimi-api-key') || ''
+      : '';
+    if (apiKey && kimiService.getApiKey() !== apiKey) {
+      kimiService.setApiKey(apiKey);
+    }
   }
   return kimiService;
 }
