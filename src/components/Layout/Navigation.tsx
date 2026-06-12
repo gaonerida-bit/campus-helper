@@ -18,7 +18,6 @@ const moreNavItems = [
   { href: '/interview', label: '面试', icon: '🎯' },
   { href: '/exam', label: '笔试', icon: '✏️' },
   { href: '/contacts', label: '联系人', icon: '🤝' },
-  { href: '/pool', label: '备选库', icon: '📥' },
   { href: '/ai', label: 'AI助手', icon: '🤖' },
   { href: '/settings', label: '设置', icon: '⚙️' },
 ];

@@ -45,6 +45,7 @@ function AddApplicationForm({
   onSubmit: (data: Omit<AppApplication, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onCancel: () => void;
 }) {
+  const [isPool, setIsPool] = useState(false); // 是否加入备选库
   const [formData, setFormData] = useState<{
     company: string;
     position: string;
@@ -71,6 +72,15 @@ function AddApplicationForm({
     url: '',
   });
 
+  // 切换备选库时自动调整 stage
+  const handlePoolToggle = (checked: boolean) => {
+    setIsPool(checked);
+    setFormData(prev => ({
+      ...prev,
+      stage: checked ? '库' : '投递',
+    }));
+  };
+
   const handleSubmit = () => {
     if (!formData.company || !formData.position) {
       alert('请填写公司和岗位');
@@ -81,6 +91,34 @@ function AddApplicationForm({
 
   return (
     <div className="space-y-4">
+      {/* 备选库开关 */}
+      <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--muted)] border border-[var(--border)]">
+        <div className="flex items-center gap-3">
+          <span className="text-xl">{isPool ? '📥' : ''}</span>
+          <div>
+            <p className="text-sm font-medium text-[var(--foreground)]">
+              {isPool ? '加入备选库' : '正式投递'}
+            </p>
+            <p className="text-xs text-[var(--foreground-muted)]">
+              {isPool ? '暂不投递，先收藏关注' : '已投递，进入流程跟踪'}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => handlePoolToggle(!isPool)}
+          className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
+            isPool ? 'bg-[var(--warning)]' : 'bg-[var(--primary)]'
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${
+              isPool ? 'translate-x-5' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">公司名称 *</label>
@@ -187,7 +225,7 @@ function AddApplicationForm({
 }
 
 // 看板视图
-function KanbanView({ apps }: { apps: AppApplication[] }) {
+function KanbanView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePool: (id: string, stage: string) => void }) {
   const columns: ApplicationStatus[] = ['pending', 'interviewing', 'offer', 'rejected'];
 
   const handleJump = (url: string) => {
@@ -245,8 +283,20 @@ function KanbanView({ apps }: { apps: AppApplication[] }) {
                         🔗 一键跳转
                       </button>
                     )}
-                    <div className="mt-2 text-xs text-[var(--foreground-muted)]">
-                      {app.stage}
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-xs text-[var(--foreground-muted)]">
+                        {app.stage === '库' ? '📥 备选' : app.stage}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onTogglePool(app.id, app.stage);
+                        }}
+                        className="text-xs px-2 py-1 rounded-lg bg-[var(--muted)] text-[var(--foreground-muted)] hover:bg-[var(--warning)]/10 hover:text-[var(--warning)] transition-smooth"
+                        title={app.stage === '库' ? '转为已投递' : '加入备选库'}
+                      >
+                        {app.stage === '库' ? '📤 投递' : ' 备选'}
+                      </button>
                     </div>
                   </div>
                 ))
@@ -260,7 +310,7 @@ function KanbanView({ apps }: { apps: AppApplication[] }) {
 }
 
 // 表格视图
-function TableView({ apps }: { apps: AppApplication[] }) {
+function TableView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePool: (id: string, stage: string) => void }) {
   const handleJump = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -294,23 +344,36 @@ function TableView({ apps }: { apps: AppApplication[] }) {
                 <td className="py-3 px-4 text-[var(--foreground-light)]">{app.position}</td>
                 <td className="py-3 px-4 text-[var(--success)] font-medium">{app.salary || '-'}</td>
                 <td className="py-3 px-4 text-[var(--foreground-light)]">{app.location || '-'}</td>
-                <td className="py-3 px-4 text-[var(--foreground-light)]">{app.stage}</td>
+                <td className="py-3 px-4">
+                  <span className={`inline-flex items-center gap-1 text-xs ${app.stage === '库' ? 'text-[var(--warning)]' : 'text-[var(--foreground-light)]'}`}>
+                    {app.stage === '库' ? '📥 备选' : app.stage}
+                  </span>
+                </td>
                 <td className="py-3 px-4">
                   <span className={`inline-block px-2 py-1 rounded-lg text-xs font-medium ${bgColor} ${color}`}>
                     {label}
                   </span>
                 </td>
                 <td className="py-3 px-4">
-                  {app.url ? (
+                  <div className="flex items-center gap-2">
+                    {app.url ? (
+                      <button
+                        onClick={() => handleJump(app.url!)}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-medium hover:bg-[var(--primary)]/90 transition-smooth"
+                      >
+                        🔗 跳转
+                      </button>
+                    ) : (
+                      <span className="text-[var(--foreground-muted)] text-xs">-</span>
+                    )}
                     <button
-                      onClick={() => handleJump(app.url!)}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-medium hover:bg-[var(--primary)]/90 transition-smooth"
+                      onClick={() => onTogglePool(app.id, app.stage)}
+                      className="px-2 py-1.5 rounded-lg text-xs bg-[var(--muted)] text-[var(--foreground-muted)] hover:bg-[var(--warning)]/10 hover:text-[var(--warning)] transition-smooth"
+                      title={app.stage === '库' ? '转为已投递' : '加入备选库'}
                     >
-                      🔗 跳转
+                      {app.stage === '库' ? '📤' : ''}
                     </button>
-                  ) : (
-                    <span className="text-[var(--foreground-muted)] text-xs">-</span>
-                  )}
+                  </div>
                 </td>
               </tr>
             );
@@ -322,7 +385,7 @@ function TableView({ apps }: { apps: AppApplication[] }) {
 }
 
 // 卡片视图
-function CardView({ apps }: { apps: AppApplication[] }) {
+function CardView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePool: (id: string, stage: string) => void }) {
   const handleJump = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -357,7 +420,9 @@ function CardView({ apps }: { apps: AppApplication[] }) {
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-[var(--foreground-muted)]">📋</span>
-                <span className="text-[var(--foreground-light)]">{app.stage}</span>
+                <span className={app.stage === '库' ? 'text-[var(--warning)]' : 'text-[var(--foreground-light)]'}>
+                  {app.stage === '库' ? '📥 备选' : app.stage}
+                </span>
               </div>
             </div>
             {app.url && (
@@ -375,6 +440,16 @@ function CardView({ apps }: { apps: AppApplication[] }) {
               <span className={`px-2 py-1 rounded-lg text-xs font-medium ${bgColor} ${color}`}>
                 {label}
               </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTogglePool(app.id, app.stage);
+                }}
+                className="text-xs px-2 py-1 rounded-lg bg-[var(--muted)] text-[var(--foreground-muted)] hover:bg-[var(--warning)]/10 hover:text-[var(--warning)] transition-smooth"
+                title={app.stage === '库' ? '转为已投递' : '加入备选库'}
+              >
+                {app.stage === '库' ? '📤 投递' : ' 备选'}
+              </button>
             </div>
           </div>
         );
@@ -384,15 +459,22 @@ function CardView({ apps }: { apps: AppApplication[] }) {
 }
 
 export default function ApplicationsPage() {
-  const { applications, add } = useApplications();
+  const { applications, add, update } = useApplications();
   const [activeView, setActiveView] = useState('kanban');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [poolFilter, setPoolFilter] = useState<'all' | 'applied' | 'pool'>('all');
 
   const handleAddApplication = (data: Omit<AppApplication, 'id' | 'createdAt' | 'updatedAt'>) => {
     add(data);
     setIsAddOpen(false);
+  };
+
+  // 切换投递/备选状态
+  const handleTogglePool = (id: string, currentStage: string) => {
+    const newStage = currentStage === '库' ? '投递' : '库';
+    update(id, { stage: newStage as AppApplication['stage'] });
   };
 
   // Filter applications
@@ -401,45 +483,87 @@ export default function ApplicationsPage() {
       app.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.position.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = !statusFilter || app.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    // 备选库筛选：stage === '库' 表示备选
+    const matchesPool = poolFilter === 'all' ||
+      (poolFilter === 'pool' && app.stage === '库') ||
+      (poolFilter === 'applied' && app.stage !== '库');
+    return matchesSearch && matchesStatus && matchesPool;
   });
+
+  // 统计
+  const poolCount = applications.filter(a => a.stage === '库').length;
+  const appliedCount = applications.filter(a => a.stage !== '库').length;
 
   return (
     <AppLayout>
       <Header
         title="投递管理"
-        subtitle={`共 ${applications.length} 家公司的投递记录`}
-        actions={<Button onClick={() => setIsAddOpen(true)}>＋ 添加投递</Button>}
+        subtitle={`已投递 ${appliedCount} · 备选库 ${poolCount} · 共 ${applications.length}`}
+        actions={<Button onClick={() => setIsAddOpen(true)}>＋ 添加</Button>}
       />
 
       <div className="flex-1 overflow-auto p-6">
-        {/* 视图切换器 */}
-        <div className="flex items-center justify-between mb-6">
+        {/* 投递/备选筛选标签 + 视图切换 */}
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPoolFilter('all')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-smooth ${
+                poolFilter === 'all'
+                  ? 'bg-[var(--primary)] text-white'
+                  : 'bg-[var(--surface)] text-[var(--foreground-light)] hover:bg-[var(--muted)] border border-[var(--border)]'
+              }`}
+            >
+              全部 ({applications.length})
+            </button>
+            <button
+              onClick={() => setPoolFilter('applied')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-smooth ${
+                poolFilter === 'applied'
+                  ? 'bg-[var(--primary)] text-white'
+                  : 'bg-[var(--surface)] text-[var(--foreground-light)] hover:bg-[var(--muted)] border border-[var(--border)]'
+              }`}
+            >
+              已投递 ({appliedCount})
+            </button>
+            <button
+              onClick={() => setPoolFilter('pool')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-smooth ${
+                poolFilter === 'pool'
+                  ? 'bg-[var(--warning)] text-white'
+                  : 'bg-[var(--surface)] text-[var(--foreground-light)] hover:bg-[var(--muted)] border border-[var(--border)]'
+              }`}
+            >
+              📥 备选库 ({poolCount})
+            </button>
+          </div>
           <ViewToggle
             views={viewOptions}
             activeView={activeView}
             onChange={setActiveView}
           />
-          <div className="flex items-center gap-3">
-            <input
-              type="text"
-              placeholder="搜索公司或岗位..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="px-4 py-2 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] w-64"
-            />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none cursor-pointer"
-            >
-              <option value="">全部状态</option>
-              <option value="pending">待回复</option>
-              <option value="interviewing">面试中</option>
-              <option value="offer">已Offer</option>
-              <option value="rejected">已拒绝</option>
-            </select>
-          </div>
+        </div>
+
+        {/* 搜索和状态筛选 */}
+        <div className="flex items-center gap-3 mb-6">
+          <input
+            type="text"
+            placeholder="搜索公司或岗位..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 px-4 py-2 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none cursor-pointer"
+          >
+            <option value="">全部状态</option>
+            <option value="pending">待回复</option>
+            <option value="interviewing">面试中</option>
+            <option value="offer">已Offer</option>
+            <option value="rejected">已拒绝</option>
+          </select>
         </div>
 
         {/* 视图内容 */}
@@ -452,13 +576,19 @@ export default function ApplicationsPage() {
           </div>
         ) : filteredApps.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-[var(--foreground-muted)]">没有符合条件的投递</p>
+            <div className="text-4xl mb-3">{poolFilter === 'pool' ? '📥' : '🔍'}</div>
+            <p className="text-[var(--foreground-light)] mb-1">
+              {poolFilter === 'pool' ? '备选库还是空的' : '没有符合条件的投递'}
+            </p>
+            <p className="text-sm text-[var(--foreground-muted)]">
+              {poolFilter === 'pool' ? '添加岗位时打开「加入备选库」开关即可收藏' : '试试调整筛选条件'}
+            </p>
           </div>
         ) : (
           <>
-            {activeView === 'kanban' && <KanbanView apps={filteredApps} />}
-            {activeView === 'table' && <TableView apps={filteredApps} />}
-            {activeView === 'card' && <CardView apps={filteredApps} />}
+            {activeView === 'kanban' && <KanbanView apps={filteredApps} onTogglePool={handleTogglePool} />}
+            {activeView === 'table' && <TableView apps={filteredApps} onTogglePool={handleTogglePool} />}
+            {activeView === 'card' && <CardView apps={filteredApps} onTogglePool={handleTogglePool} />}
           </>
         )}
       </div>
