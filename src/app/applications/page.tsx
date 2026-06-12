@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
 import ViewToggle from '@/components/UI/ViewToggle';
@@ -188,7 +189,7 @@ function AddApplicationForm({
 }
 
 // 看板视图
-function KanbanView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePool: (id: string, stage: string) => void }) {
+function KanbanView({ apps, onTogglePool, onCardClick }: { apps: AppApplication[]; onTogglePool: (id: string, stage: string) => void; onCardClick: (id: string) => void }) {
   const columns: ApplicationStatus[] = ['pending', 'interviewing', 'offer', 'rejected'];
 
   const handleJump = (url: string) => {
@@ -217,6 +218,7 @@ function KanbanView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePo
                 columnApps.map((app) => (
                   <div
                     key={app.id}
+                    onClick={() => onCardClick(app.id)}
                     className="bg-[var(--surface)] rounded-xl p-4 shadow-sm hover:shadow-md transition-smooth cursor-pointer border border-[var(--border)]"
                   >
                     <div className="flex items-start justify-between mb-2">
@@ -273,7 +275,7 @@ function KanbanView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePo
 }
 
 // 表格视图
-function TableView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePool: (id: string, stage: string) => void }) {
+function TableView({ apps, onTogglePool, onCardClick }: { apps: AppApplication[]; onTogglePool: (id: string, stage: string) => void; onCardClick: (id: string) => void }) {
   const handleJump = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -299,7 +301,8 @@ function TableView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePoo
             return (
               <tr
                 key={app.id}
-                className="border-b border-[var(--border)] hover:bg-[var(--muted)] transition-smooth"
+                onClick={() => onCardClick(app.id)}
+                className="border-b border-[var(--border)] hover:bg-[var(--muted)] transition-smooth cursor-pointer"
               >
                 <td className="py-3 px-4">
                   <span className="font-medium text-[var(--foreground)]">{app.company}</span>
@@ -348,7 +351,7 @@ function TableView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePoo
 }
 
 // 卡片视图
-function CardView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePool: (id: string, stage: string) => void }) {
+function CardView({ apps, onTogglePool, onCardClick }: { apps: AppApplication[]; onTogglePool: (id: string, stage: string) => void; onCardClick: (id: string) => void }) {
   const handleJump = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -361,6 +364,7 @@ function CardView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePool
         return (
           <div
             key={app.id}
+            onClick={() => onCardClick(app.id)}
             className="bg-[var(--surface)] rounded-2xl p-5 shadow-sm hover:shadow-lg transition-smooth cursor-pointer border border-[var(--border)]"
           >
             <div className="flex items-start justify-between mb-3">
@@ -422,12 +426,17 @@ function CardView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePool
 }
 
 export default function ApplicationsPage() {
+  const router = useRouter();
   const { applications, add, update } = useApplications();
   const [activeView, setActiveView] = useState('kanban');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [poolFilter, setPoolFilter] = useState<'all' | 'applied' | 'pool'>('all');
+
+  const handleCardClick = (id: string) => {
+    router.push(`/applications/${id}`);
+  };
 
   const handleAddApplication = (data: Omit<AppApplication, 'id' | 'createdAt' | 'updatedAt'>) => {
     add(data);
@@ -549,9 +558,9 @@ export default function ApplicationsPage() {
           </div>
         ) : (
           <>
-            {activeView === 'kanban' && <KanbanView apps={filteredApps} onTogglePool={handleTogglePool} />}
-            {activeView === 'table' && <TableView apps={filteredApps} onTogglePool={handleTogglePool} />}
-            {activeView === 'card' && <CardView apps={filteredApps} onTogglePool={handleTogglePool} />}
+            {activeView === 'kanban' && <KanbanView apps={filteredApps} onTogglePool={handleTogglePool} onCardClick={handleCardClick} />}
+            {activeView === 'table' && <TableView apps={filteredApps} onTogglePool={handleTogglePool} onCardClick={handleCardClick} />}
+            {activeView === 'card' && <CardView apps={filteredApps} onTogglePool={handleTogglePool} onCardClick={handleCardClick} />}
           </>
         )}
       </div>
