@@ -24,6 +24,7 @@ const statusLabels: Record<ApplicationStatus, { label: string; color: string; bg
 };
 
 const stageLabels: Record<string, string> = {
+  '未投递': '未投递',
   '投递': '已投递',
   '筛选': '筛选中',
   '笔试': '笔试中',
@@ -45,13 +46,12 @@ function AddApplicationForm({
   onSubmit: (data: Omit<AppApplication, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onCancel: () => void;
 }) {
-  const [isPool, setIsPool] = useState(false); // 是否加入备选库
   const [formData, setFormData] = useState<{
     company: string;
     position: string;
     location: string;
     salary: string;
-    stage: '投递' | '筛选' | '笔试' | '一面' | '二面' | '三面' | 'HR面' | '签约' | 'offer' | '拒绝' | '库';
+    stage: '未投递' | '投递' | '筛选' | '笔试' | '一面' | '二面' | '三面' | 'HR面' | '签约' | 'offer' | '拒绝' | '库';
     status: 'pending' | 'interviewing' | 'offer' | 'rejected';
     appliedDate: string;
     hrContact: string;
@@ -72,15 +72,6 @@ function AddApplicationForm({
     url: '',
   });
 
-  // 切换备选库时自动调整 stage
-  const handlePoolToggle = (checked: boolean) => {
-    setIsPool(checked);
-    setFormData(prev => ({
-      ...prev,
-      stage: checked ? '库' : '投递',
-    }));
-  };
-
   const handleSubmit = () => {
     if (!formData.company || !formData.position) {
       alert('请填写公司和岗位');
@@ -91,34 +82,6 @@ function AddApplicationForm({
 
   return (
     <div className="space-y-4">
-      {/* 备选库开关 */}
-      <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--muted)] border border-[var(--border)]">
-        <div className="flex items-center gap-3">
-          <span className="text-xl">{isPool ? '📥' : ''}</span>
-          <div>
-            <p className="text-sm font-medium text-[var(--foreground)]">
-              {isPool ? '加入备选库' : '正式投递'}
-            </p>
-            <p className="text-xs text-[var(--foreground-muted)]">
-              {isPool ? '暂不投递，先收藏关注' : '已投递，进入流程跟踪'}
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => handlePoolToggle(!isPool)}
-          className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
-            isPool ? 'bg-[var(--warning)]' : 'bg-[var(--primary)]'
-          }`}
-        >
-          <span
-            className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${
-              isPool ? 'translate-x-5' : 'translate-x-0'
-            }`}
-          />
-        </button>
-      </div>
-
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">公司名称 *</label>
@@ -293,9 +256,9 @@ function KanbanView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePo
                           onTogglePool(app.id, app.stage);
                         }}
                         className="text-xs px-2 py-1 rounded-lg bg-[var(--muted)] text-[var(--foreground-muted)] hover:bg-[var(--warning)]/10 hover:text-[var(--warning)] transition-smooth"
-                        title={app.stage === '库' ? '转为已投递' : '加入备选库'}
+                        title={app.stage === '未投递' ? '转为已投递' : '加入备选库'}
                       >
-                        {app.stage === '库' ? '📤 投递' : ' 备选'}
+                        {app.stage === '未投递' ? '📤 投递' : ' 备选'}
                       </button>
                     </div>
                   </div>
@@ -369,9 +332,9 @@ function TableView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePoo
                     <button
                       onClick={() => onTogglePool(app.id, app.stage)}
                       className="px-2 py-1.5 rounded-lg text-xs bg-[var(--muted)] text-[var(--foreground-muted)] hover:bg-[var(--warning)]/10 hover:text-[var(--warning)] transition-smooth"
-                      title={app.stage === '库' ? '转为已投递' : '加入备选库'}
+                      title={app.stage === '未投递' ? '转为已投递' : '加入备选库'}
                     >
-                      {app.stage === '库' ? '📤' : ''}
+                      {app.stage === '未投递' ? '📤' : ''}
                     </button>
                   </div>
                 </td>
@@ -446,9 +409,9 @@ function CardView({ apps, onTogglePool }: { apps: AppApplication[]; onTogglePool
                   onTogglePool(app.id, app.stage);
                 }}
                 className="text-xs px-2 py-1 rounded-lg bg-[var(--muted)] text-[var(--foreground-muted)] hover:bg-[var(--warning)]/10 hover:text-[var(--warning)] transition-smooth"
-                title={app.stage === '库' ? '转为已投递' : '加入备选库'}
+                title={app.stage === '未投递' ? '转为已投递' : '加入备选库'}
               >
-                {app.stage === '库' ? '📤 投递' : ' 备选'}
+                {app.stage === '未投递' ? '📤 投递' : ' 备选'}
               </button>
             </div>
           </div>
@@ -473,7 +436,7 @@ export default function ApplicationsPage() {
 
   // 切换投递/备选状态
   const handleTogglePool = (id: string, currentStage: string) => {
-    const newStage = currentStage === '库' ? '投递' : '库';
+    const newStage = currentStage === '未投递' ? '投递' : '未投递';
     update(id, { stage: newStage as AppApplication['stage'] });
   };
 
@@ -483,16 +446,16 @@ export default function ApplicationsPage() {
       app.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.position.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = !statusFilter || app.status === statusFilter;
-    // 备选库筛选：stage === '库' 表示备选
+    // 备选库筛选：stage === '未投递' 表示备选
     const matchesPool = poolFilter === 'all' ||
-      (poolFilter === 'pool' && app.stage === '库') ||
-      (poolFilter === 'applied' && app.stage !== '库');
+      (poolFilter === 'pool' && app.stage === '未投递') ||
+      (poolFilter === 'applied' && app.stage !== '未投递');
     return matchesSearch && matchesStatus && matchesPool;
   });
 
   // 统计
-  const poolCount = applications.filter(a => a.stage === '库').length;
-  const appliedCount = applications.filter(a => a.stage !== '库').length;
+  const poolCount = applications.filter(a => a.stage === '未投递').length;
+  const appliedCount = applications.filter(a => a.stage !== '未投递').length;
 
   return (
     <AppLayout>
@@ -581,7 +544,7 @@ export default function ApplicationsPage() {
               {poolFilter === 'pool' ? '备选库还是空的' : '没有符合条件的投递'}
             </p>
             <p className="text-sm text-[var(--foreground-muted)]">
-              {poolFilter === 'pool' ? '添加岗位时打开「加入备选库」开关即可收藏' : '试试调整筛选条件'}
+              {poolFilter === 'pool' ? '添加岗位时状态选择「未投递」即可收藏' : '试试调整筛选条件'}
             </p>
           </div>
         ) : (
