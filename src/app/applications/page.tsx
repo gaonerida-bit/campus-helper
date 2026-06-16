@@ -177,16 +177,106 @@ function AddApplicationForm({
 }
 
 // 看板视图
-function KanbanView({ apps, onTogglePool, onCardClick }: { apps: AppApplication[]; onTogglePool: (id: string, stage: string) => void; onCardClick: (id: string) => void }) {
-  const columns: ApplicationStatus[] = ['pending', 'interviewing', 'offer', 'rejected'];
+function KanbanView({ apps, onTogglePool, onCardClick, onStageChange, groupBy }: {
+  apps: AppApplication[];
+  onTogglePool: (id: string, stage: string) => void;
+  onCardClick: (id: string) => void;
+  onStageChange: (id: string, newStage: string) => void;
+  groupBy: 'status' | 'stage';
+}) {
+  const { nodes: pipelineNodes } = usePipeline();
+  const statusColumns: ApplicationStatus[] = ['pending', 'interviewing', 'offer', 'rejected'];
 
   const handleJump = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  const renderCard = (app: AppApplication) => (
+    <div
+      key={app.id}
+      onClick={() => onCardClick(app.id)}
+      className="bg-[var(--surface)] rounded-xl p-4 shadow-sm hover:shadow-md transition-smooth cursor-pointer border border-[var(--border)]"
+    >
+      <div className="flex items-start justify-between mb-2">
+        <h4 className="font-medium text-[var(--foreground)]">
+          {app.company}
+        </h4>
+        {app.salary && (
+          <span className="text-xs text-[var(--success)] font-medium">
+            {app.salary}
+          </span>
+        )}
+      </div>
+      <p className="text-sm text-[var(--foreground-light)] mb-2">
+        {app.position}
+      </p>
+      <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+        <span>📍 {app.location || '-'}</span>
+      </div>
+      {app.url && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleJump(app.url!);
+          }}
+          className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-medium hover:bg-[var(--primary)]/90 transition-smooth"
+        >
+          🔗 一键跳转
+        </button>
+      )}
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-xs text-[var(--foreground-muted)]">
+          {groupBy === 'status' ? (app.stage === '库' ? '📥 备选' : app.stage) : statusLabels[app.status as ApplicationStatus]?.label}
+        </span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePool(app.id, app.stage);
+          }}
+          className="text-xs px-2 py-1 rounded-lg bg-[var(--muted)] text-[var(--foreground-muted)] hover:bg-[var(--warning)]/10 hover:text-[var(--warning)] transition-smooth"
+          title={app.stage === '未投递' ? '转为已投递' : '加入备选库'}
+        >
+          {app.stage === '未投递' ? '📤 投递' : ' 备选'}
+        </button>
+      </div>
+    </div>
+  );
+
+  if (groupBy === 'stage') {
+    // Group by pipeline stages
+    return (
+      <div className="flex gap-4 overflow-x-auto pb-4">
+        {pipelineNodes.map((node) => {
+          const columnApps = apps.filter((app) => app.stage === node.name);
+
+          return (
+            <div key={node.id} className="flex-shrink-0 w-72">
+              <div className="rounded-xl p-3 mb-3" style={{ backgroundColor: `${node.color}20` }}>
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: node.color }}>
+                  <span>{node.icon}</span>
+                  <span>{node.name} ({columnApps.length})</span>
+                </h3>
+              </div>
+              <div className="space-y-3 min-h-[200px]">
+                {columnApps.length === 0 ? (
+                  <div className="text-center py-8 text-[var(--foreground-muted)] text-sm">
+                    暂无投递
+                  </div>
+                ) : (
+                  columnApps.map(renderCard)
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Group by status (default)
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
-      {columns.map((status) => {
+      {statusColumns.map((status) => {
         const columnApps = apps.filter((app) => app.status === status);
         const { label, color, bgColor } = statusLabels[status];
 
@@ -203,56 +293,7 @@ function KanbanView({ apps, onTogglePool, onCardClick }: { apps: AppApplication[
                   暂无投递
                 </div>
               ) : (
-                columnApps.map((app) => (
-                  <div
-                    key={app.id}
-                    onClick={() => onCardClick(app.id)}
-                    className="bg-[var(--surface)] rounded-xl p-4 shadow-sm hover:shadow-md transition-smooth cursor-pointer border border-[var(--border)]"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-medium text-[var(--foreground)]">
-                        {app.company}
-                      </h4>
-                      {app.salary && (
-                        <span className="text-xs text-[var(--success)] font-medium">
-                          {app.salary}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-[var(--foreground-light)] mb-2">
-                      {app.position}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
-                      <span>📍 {app.location || '-'}</span>
-                    </div>
-                    {app.url && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleJump(app.url!);
-                        }}
-                        className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-medium hover:bg-[var(--primary)]/90 transition-smooth"
-                      >
-                        🔗 一键跳转
-                      </button>
-                    )}
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-xs text-[var(--foreground-muted)]">
-                        {app.stage === '库' ? '📥 备选' : app.stage}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onTogglePool(app.id, app.stage);
-                        }}
-                        className="text-xs px-2 py-1 rounded-lg bg-[var(--muted)] text-[var(--foreground-muted)] hover:bg-[var(--warning)]/10 hover:text-[var(--warning)] transition-smooth"
-                        title={app.stage === '未投递' ? '转为已投递' : '加入备选库'}
-                      >
-                        {app.stage === '未投递' ? '📤 投递' : ' 备选'}
-                      </button>
-                    </div>
-                  </div>
-                ))
+                columnApps.map(renderCard)
               )}
             </div>
           </div>
@@ -421,6 +462,7 @@ export default function ApplicationsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [poolFilter, setPoolFilter] = useState<'all' | 'applied' | 'pool'>('all');
+  const [kanbanGroupBy, setKanbanGroupBy] = useState<'status' | 'stage'>('stage');
 
   const handleCardClick = (id: string) => {
     router.push(`/applications/${id}`);
@@ -434,7 +476,12 @@ export default function ApplicationsPage() {
   // 切换投递/备选状态
   const handleTogglePool = (id: string, currentStage: string) => {
     const newStage = currentStage === '未投递' ? '投递' : '未投递';
-    update(id, { stage: newStage as AppApplication['stage'] });
+    update(id, { stage: newStage });
+  };
+
+  // 切换阶段
+  const handleStageChange = (id: string, newStage: string) => {
+    update(id, { stage: newStage });
   };
 
   // Filter applications
@@ -504,6 +551,33 @@ export default function ApplicationsPage() {
           />
         </div>
 
+        {/* 看板分组模式切换 */}
+        {activeView === 'kanban' && (
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-sm text-[var(--foreground-muted)]">看板分组：</span>
+            <button
+              onClick={() => setKanbanGroupBy('stage')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-smooth ${
+                kanbanGroupBy === 'stage'
+                  ? 'bg-[var(--primary)] text-white'
+                  : 'bg-[var(--surface)] text-[var(--foreground-light)] hover:bg-[var(--muted)] border border-[var(--border)]'
+              }`}
+            >
+              按流程阶段
+            </button>
+            <button
+              onClick={() => setKanbanGroupBy('status')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-smooth ${
+                kanbanGroupBy === 'status'
+                  ? 'bg-[var(--primary)] text-white'
+                  : 'bg-[var(--surface)] text-[var(--foreground-light)] hover:bg-[var(--muted)] border border-[var(--border)]'
+              }`}
+            >
+              按状态
+            </button>
+          </div>
+        )}
+
         {/* 搜索和状态筛选 */}
         <div className="flex items-center gap-3 mb-6">
           <input
@@ -546,7 +620,15 @@ export default function ApplicationsPage() {
           </div>
         ) : (
           <>
-            {activeView === 'kanban' && <KanbanView apps={filteredApps} onTogglePool={handleTogglePool} onCardClick={handleCardClick} />}
+            {activeView === 'kanban' && (
+              <KanbanView
+                apps={filteredApps}
+                onTogglePool={handleTogglePool}
+                onCardClick={handleCardClick}
+                onStageChange={handleStageChange}
+                groupBy={kanbanGroupBy}
+              />
+            )}
             {activeView === 'table' && <TableView apps={filteredApps} onTogglePool={handleTogglePool} onCardClick={handleCardClick} />}
             {activeView === 'card' && <CardView apps={filteredApps} onTogglePool={handleTogglePool} onCardClick={handleCardClick} />}
           </>
