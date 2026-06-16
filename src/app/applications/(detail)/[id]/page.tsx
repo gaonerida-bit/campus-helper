@@ -6,30 +6,14 @@ import { useParams } from 'next/navigation';
 import AppLayout from '@/components/Layout/AppLayout';
 import Button from '@/components/UI/Button';
 import { useApplications, useInterviews, useExams, useOffers } from '@/context/DataContext';
-
-interface PipelineNode {
-  id: string;
-  name: string;
-  type: 'interview' | 'test' | 'screening' | 'other';
-  status: 'pending' | 'in_progress' | 'passed' | 'failed' | 'skipped';
-  plannedTime?: string;
-  actualTime?: string;
-  notes?: string;
-}
+import { usePipeline } from '@/context/PipelineContext';
 
 const nodeTypeConfig = {
   interview: { icon: '🎯', color: 'bg-[var(--warning)]', label: '面试' },
   test: { icon: '📝', color: 'bg-[var(--info)]', label: '笔试' },
   screening: { icon: '📋', color: 'bg-[var(--primary)]', label: '筛选' },
+  offer: { icon: '🎉', color: 'bg-[var(--success)]', label: 'Offer' },
   other: { icon: '📌', color: 'bg-[var(--secondary)]', label: '其他' },
-};
-
-const statusConfig = {
-  pending: { color: 'bg-[var(--muted)]', textColor: 'text-[var(--foreground-muted)]', label: '待进行' },
-  in_progress: { color: 'bg-[var(--warning)]', textColor: 'text-white', label: '进行中' },
-  passed: { color: 'bg-[var(--success)]', textColor: 'text-white', label: '已通过' },
-  failed: { color: 'bg-[var(--error)]', textColor: 'text-white', label: '未通过' },
-  skipped: { color: 'bg-[var(--muted-dark)]', textColor: 'text-[var(--foreground-muted)]', label: '已跳过' },
 };
 
 type TabType = 'overview' | 'resume' | 'exam' | 'interview' | 'offer' | 'attachment' | 'timeline';
@@ -42,21 +26,11 @@ export default function ApplicationDetailPage() {
   const { interviews } = useInterviews();
   const { exams } = useExams();
   const { offers } = useOffers();
+  const { nodes: pipelineNodes } = usePipeline();
 
   const application = applications.find(a => a.id === id);
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
-
-  // Mock pipeline nodes - in real app this would come from application data
-  const [nodes, setNodes] = useState<PipelineNode[]>([
-    { id: '1', name: '简历投递', type: 'screening', status: 'passed', actualTime: '6月1日' },
-    { id: '2', name: '简历筛选', type: 'screening', status: 'passed', actualTime: '6月3日' },
-    { id: '3', name: '在线测评', type: 'test', status: 'passed', actualTime: '6月5日' },
-    { id: '4', name: '技术一面', type: 'interview', status: 'in_progress', plannedTime: '明天 14:00' },
-    { id: '5', name: '技术二面', type: 'interview', status: 'pending', plannedTime: '待定' },
-    { id: '6', name: 'HR面', type: 'interview', status: 'pending', plannedTime: '待定' },
-    { id: '7', name: 'Offer', type: 'other', status: 'pending', plannedTime: '待定' },
-  ]);
 
   if (!application) {
     return (
@@ -74,24 +48,8 @@ export default function ApplicationDetailPage() {
     );
   }
 
-  const updateNodeStatus = (nodeId: string, newStatus: PipelineNode['status']) => {
-    setNodes(nodes.map(node => {
-      if (node.id === nodeId) {
-        const updatedNode = { ...node, status: newStatus };
-        if (newStatus === 'passed' || newStatus === 'failed') {
-          updatedNode.actualTime = new Date().toLocaleDateString('zh-CN');
-        }
-        return updatedNode;
-      }
-      if (newStatus === 'failed') {
-        const currentIndex = nodes.findIndex(n => n.id === nodeId);
-        const nodeIndex = nodes.findIndex(n => n.id === node.id);
-        if (nodeIndex > currentIndex) {
-          return { ...node, status: 'skipped' as const };
-        }
-      }
-      return node;
-    }));
+  const handleStageChange = (newStage: string) => {
+    update(id, { stage: newStage, updatedAt: new Date().toISOString() });
   };
 
   // Get related data for this application
@@ -147,44 +105,55 @@ export default function ApplicationDetailPage() {
             <div
               className="absolute top-6 left-0 h-1 bg-[var(--success)] rounded-full transition-all"
               style={{
-                width: `${(nodes.filter(n => n.status === 'passed').length / nodes.length) * 100}%`
+                width: `${(pipelineNodes.findIndex(n => n.name === application.stage) / (pipelineNodes.length - 1)) * 100}%`
               }}
             />
 
             {/* 节点 */}
             <div className="flex justify-between relative">
-              {nodes.map((node) => {
-                const typeConfig = nodeTypeConfig[node.type];
-                const statusConf = statusConfig[node.status];
-                const isActive = node.status === 'in_progress';
-                const isFailed = node.status === 'failed';
+              {pipelineNodes.map((node) => {
+                const currentStageIndex = pipelineNodes.findIndex(n => n.name === application.stage);
+                const nodeIndex = pipelineNodes.findIndex(n => n.name === node.name);
+                const isPassed = nodeIndex < currentStageIndex;
+                const isCurrent = nodeIndex === currentStageIndex;
+                const isFailed = application.stage === '拒绝' && node.name === '拒绝';
 
                 return (
-                  <div key={node.id} className="flex flex-col items-center" style={{ width: `${100 / nodes.length}%` }}>
+                  <div key={node.id} className="flex flex-col items-center" style={{ width: `${100 / pipelineNodes.length}%` }}>
                     {/* 节点圆圈 */}
                     <button
                       className={`
-                        w-12 h-12 rounded-full ${statusConf.color} flex items-center justify-center text-xl
-                        shadow-sm border-4 border-[var(--background)]
-                        ${isActive ? 'ring-4 ring-[var(--warning)]/30 animate-pulse' : ''}
-                        ${isFailed ? 'opacity-50' : ''}
+                        w-12 h-12 rounded-full flex items-center justify-center text-xl
+                        shadow-sm border-4 border-[var(--background)] transition-all
+                        ${isPassed ? 'bg-[var(--success)] text-white' : ''}
+                        ${isCurrent ? 'ring-4 ring-[var(--primary)]/30 animate-pulse' : ''}
+                        ${isFailed ? 'bg-[var(--error)] text-white opacity-75' : ''}
+                        ${!isPassed && !isCurrent && !isFailed ? 'bg-[var(--muted)] text-[var(--foreground-muted)]' : ''}
                       `}
+                      style={{
+                        backgroundColor: isCurrent ? node.color : isPassed ? 'var(--success)' : isFailed ? 'var(--error)' : undefined
+                      }}
                       onClick={() => {
-                        if (node.status === 'pending' || node.status === 'in_progress') {
-                          updateNodeStatus(node.id, node.status === 'in_progress' ? 'passed' : 'in_progress');
+                        if (node.name !== application.stage) {
+                          handleStageChange(node.name);
                         }
                       }}
                     >
-                      {typeConfig.icon}
+                      {node.icon}
                     </button>
 
                     {/* 节点信息 */}
                     <div className="mt-3 text-center">
-                      <p className={`font-medium text-sm ${statusConf.textColor}`}>
+                      <p className={`font-medium text-sm ${
+                        isCurrent ? 'text-[var(--primary)] font-semibold' :
+                        isPassed ? 'text-[var(--success)]' :
+                        isFailed ? 'text-[var(--error)]' :
+                        'text-[var(--foreground-muted)]'
+                      }`}>
                         {node.name}
                       </p>
                       <p className="text-xs text-[var(--foreground-muted)]">
-                        {node.actualTime || node.plannedTime || typeConfig.label}
+                        {nodeTypeConfig[node.type].label}
                       </p>
                     </div>
                   </div>

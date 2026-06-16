@@ -7,6 +7,7 @@ import Header from '@/components/Layout/Header';
 import ViewToggle from '@/components/UI/ViewToggle';
 import Button from '@/components/UI/Button';
 import { useApplications, Application as AppApplication } from '@/context/DataContext';
+import { usePipeline } from '@/context/PipelineContext';
 
 // 视图选项
 const viewOptions = [
@@ -24,21 +25,6 @@ const statusLabels: Record<ApplicationStatus, { label: string; color: string; bg
   rejected: { label: '已拒绝', color: 'text-[var(--error)]', bgColor: 'bg-[var(--error)]/10' },
 };
 
-const stageLabels: Record<string, string> = {
-  '未投递': '未投递',
-  '投递': '已投递',
-  '筛选': '筛选中',
-  '笔试': '笔试中',
-  '一面': '一面',
-  '二面': '二面',
-  '三面': '三面',
-  'HR面': 'HR面',
-  '签约': '签约',
-  'offer': 'Offer',
-  '拒绝': '已拒绝',
-  '库': '人才库',
-};
-
 // 添加投递表单
 function AddApplicationForm({
   onSubmit,
@@ -47,12 +33,14 @@ function AddApplicationForm({
   onSubmit: (data: Omit<AppApplication, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onCancel: () => void;
 }) {
+  const { nodes: pipelineNodes } = usePipeline();
+
   const [formData, setFormData] = useState<{
     company: string;
     position: string;
     location: string;
     salary: string;
-    stage: '未投递' | '投递' | '筛选' | '笔试' | '一面' | '二面' | '三面' | 'HR面' | '签约' | 'offer' | '拒绝' | '库';
+    stage: string;
     status: 'pending' | 'interviewing' | 'offer' | 'rejected';
     appliedDate: string;
     hrContact: string;
@@ -64,7 +52,7 @@ function AddApplicationForm({
     position: '',
     location: '',
     salary: '',
-    stage: '投递',
+    stage: pipelineNodes.find(n => n.name === '投递') ? '投递' : (pipelineNodes[1]?.name || '投递'),
     status: 'pending',
     appliedDate: new Date().toISOString().split('T')[0],
     hrContact: '',
@@ -143,11 +131,11 @@ function AddApplicationForm({
           <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">当前阶段</label>
           <select
             value={formData.stage}
-            onChange={(e) => setFormData({ ...formData, stage: e.target.value as AppApplication['stage'] })}
+            onChange={(e) => setFormData({ ...formData, stage: e.target.value })}
             className="w-full px-4 py-2.5 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-[var(--foreground)]"
           >
-            {Object.entries(stageLabels).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
+            {pipelineNodes.map((node) => (
+              <option key={node.id} value={node.name}>{node.name}</option>
             ))}
           </select>
         </div>

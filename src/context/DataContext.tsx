@@ -9,7 +9,7 @@ export interface Application {
   position: string;
   location?: string;
   salary?: string;
-  stage: '未投递' | '投递' | '筛选' | '笔试' | '一面' | '二面' | '三面' | 'HR面' | '签约' | 'offer' | '拒绝' | '库';
+  stage: string; // Dynamic - matches pipeline node names
   status: 'pending' | 'interviewing' | 'offer' | 'rejected';
   appliedDate: string;
   deadline?: string;
