@@ -28,17 +28,17 @@ type Action =
 
 // ============= Default Nodes =============
 const defaultNodes: PipelineNode[] = [
-  { id: 'default-1', name: '未投递', order: 0, color: '#94a3b8', icon: '📥', type: 'other', isDefault: true },
-  { id: 'default-2', name: '投递', order: 1, color: '#3b82f6', icon: '📤', type: 'screening', isDefault: true },
-  { id: 'default-3', name: '筛选', order: 2, color: '#8b5cf6', icon: '🔍', type: 'screening', isDefault: true },
-  { id: 'default-4', name: '笔试', order: 3, color: '#06b6d4', icon: '✏️', type: 'test', isDefault: true },
-  { id: 'default-5', name: '一面', order: 4, color: '#f59e0b', icon: '🎯', type: 'interview', isDefault: true },
-  { id: 'default-6', name: '二面', order: 5, color: '#f97316', icon: '🎯', type: 'interview', isDefault: true },
-  { id: 'default-7', name: '三面', order: 6, color: '#ef4444', icon: '🎯', type: 'interview', isDefault: true },
-  { id: 'default-8', name: 'HR面', order: 7, color: '#ec4899', icon: '🤝', type: 'interview', isDefault: true },
-  { id: 'default-9', name: '签约', order: 8, color: '#10b981', icon: '📝', type: 'offer', isDefault: true },
-  { id: 'default-10', name: 'offer', order: 9, color: '#22c55e', icon: '🎉', type: 'offer', isDefault: true },
-  { id: 'default-11', name: '拒绝', order: 10, color: '#64748b', icon: '❌', type: 'other', isDefault: true },
+  { id: 'default-1', name: '未投递', order: 0, color: '#A8B0B8', icon: '📥', type: 'other', isDefault: true },
+  { id: 'default-2', name: '投递', order: 1, color: '#8B9DAF', icon: '📤', type: 'screening', isDefault: true },
+  { id: 'default-3', name: '筛选', order: 2, color: '#B5A0C4', icon: '🔍', type: 'screening', isDefault: true },
+  { id: 'default-4', name: '笔试', order: 3, color: '#7FAAB5', icon: '✏️', type: 'test', isDefault: true },
+  { id: 'default-5', name: '一面', order: 4, color: '#C4A882', icon: '🎯', type: 'interview', isDefault: true },
+  { id: 'default-6', name: '二面', order: 5, color: '#C4A07A', icon: '🎯', type: 'interview', isDefault: true },
+  { id: 'default-7', name: '三面', order: 6, color: '#D4A5A5', icon: '🎯', type: 'interview', isDefault: true },
+  { id: 'default-8', name: 'HR面', order: 7, color: '#C49DAF', icon: '🤝', type: 'interview', isDefault: true },
+  { id: 'default-9', name: '签约', order: 8, color: '#A7B5A3', icon: '📝', type: 'offer', isDefault: true },
+  { id: 'default-10', name: 'offer', order: 9, color: '#8FAF8B', icon: '🎉', type: 'offer', isDefault: true },
+  { id: 'default-11', name: '拒绝', order: 10, color: '#9A9599', icon: '❌', type: 'other', isDefault: true },
 ];
 
 const STORAGE_KEY = 'campus-helper-pipeline-nodes';

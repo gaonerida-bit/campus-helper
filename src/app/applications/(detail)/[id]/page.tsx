@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/Layout/AppLayout';
 import Button from '@/components/UI/Button';
-import { useApplications, useInterviews, useExams, useOffers } from '@/context/DataContext';
+import { useApplications, useInterviews, useExams, useOffers, Application as AppApplication } from '@/context/DataContext';
 import { usePipeline } from '@/context/PipelineContext';
 
 const nodeTypeConfig = {
@@ -18,11 +18,145 @@ const nodeTypeConfig = {
 
 type TabType = 'overview' | 'resume' | 'exam' | 'interview' | 'offer' | 'attachment' | 'timeline';
 
+// 编辑投递表单
+function EditApplicationForm({
+  application,
+  onSubmit,
+  onCancel
+}: {
+  application: AppApplication;
+  onSubmit: (data: Partial<AppApplication>) => void;
+  onCancel: () => void;
+}) {
+  const { nodes: pipelineNodes } = usePipeline();
+
+  const [formData, setFormData] = useState({
+    company: application.company,
+    position: application.position,
+    location: application.location || '',
+    salary: application.salary || '',
+    stage: application.stage,
+    status: application.status,
+    appliedDate: application.appliedDate,
+    hrContact: application.hrContact || '',
+    notes: application.notes || '',
+    source: application.source || '',
+    url: application.url || '',
+  });
+
+  const handleSubmit = () => {
+    if (!formData.company || !formData.position) {
+      alert('请填写公司和岗位');
+      return;
+    }
+    onSubmit(formData);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">公司名称 *</label>
+          <input
+            type="text"
+            value={formData.company}
+            onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+            className="w-full px-4 py-2.5 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-[var(--foreground)]"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">岗位名称 *</label>
+          <input
+            type="text"
+            value={formData.position}
+            onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+            className="w-full px-4 py-2.5 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-[var(--foreground)]"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">工作地点</label>
+          <input
+            type="text"
+            value={formData.location}
+            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+            className="w-full px-4 py-2.5 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-[var(--foreground)]"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">薪资范围</label>
+          <input
+            type="text"
+            value={formData.salary}
+            onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
+            className="w-full px-4 py-2.5 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-[var(--foreground)]"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">🌐 投递链接</label>
+        <input
+          type="url"
+          value={formData.url}
+          onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+          className="w-full px-4 py-2.5 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-[var(--foreground)]"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">当前阶段</label>
+          <select
+            value={formData.stage}
+            onChange={(e) => setFormData({ ...formData, stage: e.target.value })}
+            className="w-full px-4 py-2.5 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-[var(--foreground)]"
+          >
+            {pipelineNodes.map((node) => (
+              <option key={node.id} value={node.name}>{node.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">投递日期</label>
+          <input
+            type="date"
+            value={formData.appliedDate}
+            onChange={(e) => setFormData({ ...formData, appliedDate: e.target.value })}
+            className="w-full px-4 py-2.5 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-[var(--foreground)]"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">HR联系人</label>
+        <input
+          type="text"
+          value={formData.hrContact}
+          onChange={(e) => setFormData({ ...formData, hrContact: e.target.value })}
+          className="w-full px-4 py-2.5 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-[var(--foreground)]"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-[var(--foreground-light)] mb-1">备注</label>
+        <textarea
+          value={formData.notes}
+          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          className="w-full px-4 py-2.5 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-[var(--foreground)] h-20 resize-none"
+        />
+      </div>
+      <div className="flex gap-3 pt-4">
+        <Button onClick={handleSubmit} className="flex-1">保存</Button>
+        <Button variant="secondary" onClick={onCancel} className="flex-1">取消</Button>
+      </div>
+    </div>
+  );
+}
+
 export default function ApplicationDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
 
-  const { applications, update } = useApplications();
+  const { applications, update, remove } = useApplications();
   const { interviews } = useInterviews();
   const { exams } = useExams();
   const { offers } = useOffers();
@@ -31,6 +165,8 @@ export default function ApplicationDetailPage() {
   const application = applications.find(a => a.id === id);
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   if (!application) {
     return (
@@ -50,6 +186,17 @@ export default function ApplicationDetailPage() {
 
   const handleStageChange = (newStage: string) => {
     update(id, { stage: newStage, updatedAt: new Date().toISOString() });
+  };
+
+  const handleEdit = (data: Partial<AppApplication>) => {
+    update(id, { ...data, updatedAt: new Date().toISOString() });
+    setIsEditOpen(false);
+  };
+
+  const handleDelete = () => {
+    remove(id);
+    setIsDeleteConfirmOpen(false);
+    router.push('/applications');
   };
 
   // Get related data for this application
@@ -92,7 +239,8 @@ export default function ApplicationDetailPage() {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="secondary" size="sm">编辑</Button>
+          <Button variant="secondary" size="sm" onClick={() => setIsEditOpen(true)}>编辑</Button>
+          <Button variant="secondary" size="sm" onClick={() => setIsDeleteConfirmOpen(true)} className="text-[var(--error)] hover:bg-[var(--error)]/10">删除</Button>
         </div>
       </div>
 
@@ -376,6 +524,60 @@ export default function ApplicationDetailPage() {
           )}
         </div>
       </div>
+
+      {/* 编辑投递弹窗 */}
+      {isEditOpen && application && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsEditOpen(false)} />
+          <div className="relative bg-[var(--surface)] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between p-6 border-b border-[var(--border)]">
+              <h2 className="text-xl font-semibold text-[var(--foreground)]">编辑投递</h2>
+              <button onClick={() => setIsEditOpen(false)} className="p-2 rounded-lg hover:bg-[var(--muted)]">✕</button>
+            </div>
+            <div className="p-6">
+              <EditApplicationForm
+                application={application}
+                onSubmit={handleEdit}
+                onCancel={() => setIsEditOpen(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 删除确认弹窗 */}
+      {isDeleteConfirmOpen && application && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsDeleteConfirmOpen(false)} />
+          <div className="relative bg-[var(--surface)] rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <div className="text-6xl mb-4">⚠️</div>
+                <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">确认删除</h3>
+                <p className="text-[var(--foreground-light)]">
+                  确定要删除 <span className="font-medium text-[var(--foreground)]">{application.company}</span> 的投递记录吗？
+                </p>
+                <p className="text-sm text-[var(--foreground-muted)] mt-2">此操作不可撤销</p>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsDeleteConfirmOpen(false)}
+                  className="flex-1"
+                >
+                  取消
+                </Button>
+                <Button
+                  onClick={handleDelete}
+                  className="flex-1 bg-[var(--error)] hover:bg-[var(--error)]/90 text-white"
+                >
+                  确认删除
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
