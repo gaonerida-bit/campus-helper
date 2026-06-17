@@ -1,12 +1,15 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { syncAllCollections, loadAllCollections, getDeviceId } from '@/lib/supabase-service';
 
 interface SyncStatus {
   lastSynced: Date | null;
   isSyncing: boolean;
   error: string | null;
+  configured: boolean;
+  deviceId: string | null;
 }
 
 export function useSupabaseSync() {
@@ -14,27 +17,35 @@ export function useSupabaseSync() {
     lastSynced: null,
     isSyncing: false,
     error: null,
+    configured: isSupabaseConfigured(),
+    deviceId: typeof window !== 'undefined' ? getDeviceId() : null,
   });
 
-  const syncToCloud = useCallback(async (data: any, table: string) => {
-    if (!supabase) {
-      console.log('Supabase not configured, skipping sync');
+  const syncToCloud = useCallback(async (state: any) => {
+    if (!isSupabaseConfigured()) {
       return { success: false, reason: 'not_configured' };
     }
 
     setStatus(prev => ({ ...prev, isSyncing: true, error: null }));
 
     try {
-      const { error } = await supabase!
-        .from(table)
-        .upsert(data);
+      const success = await syncAllCollections(state);
 
-      if (error) throw error;
+      if (!success) {
+        setStatus(prev => ({
+          ...prev,
+          isSyncing: false,
+          error: '同步失败，请检查网络连接',
+        }));
+        return { success: false, error: 'Sync failed' };
+      }
 
       setStatus({
         lastSynced: new Date(),
         isSyncing: false,
         error: null,
+        configured: true,
+        deviceId: getDeviceId(),
       });
 
       return { success: true };
@@ -48,28 +59,31 @@ export function useSupabaseSync() {
     }
   }, []);
 
-  const syncFromCloud = useCallback(async (table: string, userId?: string) => {
-    if (!supabase) {
+  const syncFromCloud = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
       return { data: null, reason: 'not_configured' };
     }
 
     setStatus(prev => ({ ...prev, isSyncing: true, error: null }));
 
     try {
-      let query = supabase!.from(table).select('*');
+      const data = await loadAllCollections();
 
-      if (userId) {
-        query = query.eq('user_id', userId);
+      if (!data) {
+        setStatus(prev => ({
+          ...prev,
+          isSyncing: false,
+          error: '从云端加载数据失败',
+        }));
+        return { data: null, error: 'Load failed' };
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
 
       setStatus({
         lastSynced: new Date(),
         isSyncing: false,
         error: null,
+        configured: true,
+        deviceId: getDeviceId(),
       });
 
       return { data };

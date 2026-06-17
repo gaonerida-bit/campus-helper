@@ -444,9 +444,12 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 // ============= Storage Keys =============
 const STORAGE_KEY = 'campus-helper-data';
 const INIT_KEY = 'campus-helper-initialized';
+const SUPABASE_SYNCED_KEY = 'campus-helper-supabase-synced';
 
 // ============= Sample Data =============
 import { sampleApplications, sampleInterviews, sampleContacts, sampleExams, sampleOffers, sampleResumes, sampleEvents, sampleQuestions } from '@/lib/sampleData';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { loadAllCollections, syncAllCollections } from '@/lib/supabase-service';
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -543,10 +546,42 @@ function saveToStorage(state: AppState): void {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Hydrate from localStorage on mount
+  // Hydrate from Supabase (primary) or localStorage (fallback) on mount
   useEffect(() => {
-    const persisted = loadFromStorage();
-    dispatch({ type: 'HYDRATE', payload: persisted });
+    let cancelled = false;
+
+    async function hydrate() {
+      // Try Supabase first if configured
+      if (isSupabaseConfigured()) {
+        try {
+          const cloudData = await loadAllCollections();
+          if (!cancelled && cloudData) {
+            const hasData = Object.entries(cloudData).some(([key, val]) => {
+              if (key === 'userProfile') return !!val;
+              return Array.isArray(val) && val.length > 0;
+            });
+
+            if (hasData) {
+              dispatch({ type: 'HYDRATE', payload: cloudData });
+              // Also save to localStorage as backup
+              saveToStorage({ ...initialState, ...cloudData, isHydrated: true, isLoading: false } as AppState);
+              return;
+            }
+          }
+        } catch (err) {
+          console.error('[DataContext] Failed to load from Supabase:', err);
+        }
+      }
+
+      // Fall back to localStorage
+      if (!cancelled) {
+        const persisted = loadFromStorage();
+        dispatch({ type: 'HYDRATE', payload: persisted });
+      }
+    }
+
+    hydrate();
+    return () => { cancelled = true; };
   }, []);
 
   // Persist to localStorage on state change
@@ -554,6 +589,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (state.isHydrated) {
       saveToStorage(state);
     }
+  }, [state]);
+
+  // Sync to Supabase on state change (debounced)
+  useEffect(() => {
+    if (!state.isHydrated || !isSupabaseConfigured()) return;
+
+    // Skip if already synced to Supabase before and data hasn't changed meaningfully
+    const timer = setTimeout(async () => {
+      try {
+        await syncAllCollections(state);
+        // Mark as synced so we don't re-upload sample data unnecessarily
+        localStorage.setItem(SUPABASE_SYNCED_KEY, 'true');
+      } catch (err) {
+        console.error('[DataContext] Failed to sync to Supabase:', err);
+      }
+    }, 3000); // 3 second debounce
+
+    return () => clearTimeout(timer);
   }, [state]);
 
   const generateId = useCallback(() => {

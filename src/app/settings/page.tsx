@@ -4,14 +4,15 @@ import { useState, useRef, useEffect } from 'react';
 import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
 import Button from '@/components/UI/Button';
-import { useUserProfile, useDataManagement, useStats } from '@/context/DataContext';
+import { useUserProfile, useDataManagement, useStats, useApp } from '@/context/DataContext';
 import { useSupabaseSync } from '@/hooks/useSupabaseSync';
 
 export default function SettingsPage() {
+  const { state } = useApp();
   const { userProfile, update } = useUserProfile();
   const { exportData, importData, clearAllData } = useDataManagement();
   const { stats } = useStats();
-  const { isConfigured, lastSynced, isSyncing, error } = useSupabaseSync();
+  const { isConfigured, lastSynced, isSyncing, error, syncToCloud, syncFromCloud, deviceId } = useSupabaseSync();
 
   const [noResponseDays, setNoResponseDays] = useState(userProfile.settings?.noResponseDays || 7);
   const [quietHoursStart, setQuietHoursStart] = useState(userProfile.settings?.quietHoursStart || '22:00');
@@ -478,8 +479,13 @@ export default function SettingsPage() {
                     {isConfigured ? '就绪' : '待配置'}
                   </span>
                 </div>
-                {lastSynced && (
+                {deviceId && (
                   <p className="text-xs text-[var(--foreground-muted)] mt-2">
+                    设备ID: {deviceId.slice(0, 16)}...
+                  </p>
+                )}
+                {lastSynced && (
+                  <p className="text-xs text-[var(--foreground-muted)] mt-1">
                     上次同步: {lastSynced.toLocaleString('zh-CN')}
                   </p>
                 )}
@@ -491,6 +497,7 @@ export default function SettingsPage() {
                   <ol className="text-sm text-blue-600 space-y-1 list-decimal list-inside">
                     <li>在 <a href="https://supabase.com" target="_blank" className="underline">supabase.com</a> 创建项目</li>
                     <li>获取 Project URL 和 anon public key</li>
+                    <li>在 Supabase SQL Editor 中运行建表脚本</li>
                     <li>在 Vercel 环境变量中设置:
                       <code className="block bg-blue-100 px-2 py-1 rounded mt-1 text-xs">
                         NEXT_PUBLIC_SUPABASE_URL=your_url<br/>
@@ -501,16 +508,39 @@ export default function SettingsPage() {
                   </ol>
                 </div>
               ) : (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    alert('同步功能将在下次更新中启用');
-                  }}
-                  className="w-full"
-                  disabled={isSyncing}
-                >
-                  {isSyncing ? '同步中...' : '🔄 立即同步'}
-                </Button>
+                <div className="flex gap-3">
+                  <Button
+                    variant="secondary"
+                    onClick={async () => {
+                      const result = await syncToCloud(state);
+                      if (result.success) {
+                        alert('✅ 数据已同步到云端');
+                      } else {
+                        alert('❌ 同步失败: ' + (result.error || '未知错误'));
+                      }
+                    }}
+                    className="flex-1"
+                    disabled={isSyncing}
+                  >
+                    {isSyncing ? '同步中...' : '📤 上传'}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={async () => {
+                      const result = await syncFromCloud();
+                      if (result.data) {
+                        alert('✅ 已从云端恢复数据，页面将刷新');
+                        window.location.reload();
+                      } else {
+                        alert('❌ 恢复失败: ' + (result.error || '未知错误'));
+                      }
+                    }}
+                    className="flex-1"
+                    disabled={isSyncing}
+                  >
+                    {isSyncing ? '加载中...' : '📥 下载'}
+                  </Button>
+                </div>
               )}
 
               {error && (
