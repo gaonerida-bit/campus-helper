@@ -7,7 +7,7 @@ import Header from '@/components/Layout/Header';
 import StatCard from '@/components/UI/StatCard';
 import Button from '@/components/UI/Button';
 import GlobalSearch from '@/components/UI/GlobalSearch';
-import { useApplications, useInterviews, useOffers } from '@/context/DataContext';
+import { useApplications, useInterviews, useOffers, useEvents } from '@/context/DataContext';
 
 const goals = {
   applications: { current: 0, target: 50, label: '投递目标' },
@@ -26,15 +26,45 @@ const quickActions = [
   { id: 8, icon: '🤖', title: 'AI模拟面试', href: '/interview', color: 'bg-pink-500' },
 ];
 
-const weeklySchedule = [
-  { day: '今天', date: '周一', events: ['暂无安排'], highlight: true },
-  { day: '明天', date: '周二', events: ['整理项目经验'], highlight: false },
-  { day: '周三', date: '周三', events: ['暂无安排'], highlight: false },
-  { day: '周四', date: '周四', events: ['算法练习'], highlight: false },
-  { day: '周五', date: '周五', events: ['暂无安排'], highlight: false },
-  { day: '周六', date: '周六', events: ['模拟面试'], highlight: false },
-  { day: '周日', date: '周日', events: ['休息调整'], highlight: false },
-];
+const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+function buildWeeklySchedule(events: any[], interviews: any[]) {
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+  const week: Array<{ day: string; date: string; events: string[]; highlight: boolean; dateStr: string }> = [];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+    const dayLabel = i === 0 ? '今天' : i === 1 ? '明天' : dayNames[d.getDay()];
+
+    const dayEvents = events.filter(e => e.date === dateStr);
+    const dayInterviews = interviews.filter(int => int.date === dateStr);
+
+    const eventLabels: string[] = [];
+    dayInterviews.forEach(int => {
+      eventLabels.push(`${int.time} ${int.company} ${int.type}`);
+    });
+    dayEvents.forEach(e => {
+      eventLabels.push(e.title);
+    });
+
+    week.push({
+      day: dayLabel,
+      date: dayNames[d.getDay()],
+      events: eventLabels.length > 0 ? eventLabels : ['暂无安排'],
+      highlight: i === 0,
+      dateStr,
+    });
+  }
+
+  return week;
+}
 
 const statusColors = {
   interview: 'text-[var(--info)] bg-[var(--info)]/10',
@@ -100,6 +130,9 @@ export default function HomePage() {
   const { applications } = useApplications();
   const { interviews } = useInterviews();
   const { offers } = useOffers();
+  const { events } = useEvents();
+
+  const weeklySchedule = buildWeeklySchedule(events, interviews);
 
   // Calculate real stats
   const stats = {
@@ -289,7 +322,9 @@ export default function HomePage() {
                   <div className={`font-semibold mb-2 ${day.highlight ? 'text-white' : 'text-[var(--foreground)]'}`}>{day.date}</div>
                   <div className={`text-xs space-y-1 ${day.highlight ? 'text-white/90' : 'text-[var(--foreground-light)]'}`}>
                     {day.events.map((event, i) => (
-                      <div key={i} className="truncate">{event.split(' ')[0]}</div>
+                      <div key={i} className="truncate" title={event}>
+                        {event === '暂无安排' ? event : event.replace(/^\d{2}:\d{2}\s/, '')}
+                      </div>
                     ))}
                   </div>
                 </div>

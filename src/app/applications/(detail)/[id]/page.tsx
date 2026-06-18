@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/Layout/AppLayout';
 import Button from '@/components/UI/Button';
-import { useApplications, useInterviews, useExams, useOffers, Application as AppApplication } from '@/context/DataContext';
+import { useApplications, useInterviews, useExams, useOffers, useActivities, Application as AppApplication } from '@/context/DataContext';
 import { usePipeline } from '@/context/PipelineContext';
 
 const nodeTypeConfig = {
@@ -160,6 +160,7 @@ export default function ApplicationDetailPage() {
   const { interviews } = useInterviews();
   const { exams } = useExams();
   const { offers } = useOffers();
+  const { activities } = useActivities();
   const { nodes: pipelineNodes } = usePipeline();
 
   const application = applications.find(a => a.id === id);
@@ -203,6 +204,76 @@ export default function ApplicationDetailPage() {
   const appInterviews = interviews.filter(i => i.applicationId === id);
   const appExams = exams.filter(e => e.applicationId === id);
   const appOffers = offers.filter(o => o.company === application.company && o.position === application.position);
+
+  // Build timeline events for this application
+  type TimelineEvent = { time: string; icon: string; color: string; title: string; detail?: string };
+  const timelineEvents: TimelineEvent[] = [];
+
+  // Application creation
+  timelineEvents.push({
+    time: application.createdAt,
+    icon: '📮',
+    color: 'border-[var(--primary)]',
+    title: '创建投递记录',
+    detail: `${application.company} · ${application.position}`,
+  });
+
+  // Activities related to this application
+  activities
+    .filter(a => a.company === application.company || a.position === application.position)
+    .forEach(a => {
+      const iconMap: Record<string, string> = { application: '📮', interview: '📅', offer: '🏆', contact: '🤝', update: '🔄' };
+      const colorMap: Record<string, string> = {
+        application: 'border-[var(--primary)]',
+        interview: 'border-[var(--warning)]',
+        offer: 'border-[var(--success)]',
+        contact: 'border-[var(--info)]',
+        update: 'border-[var(--foreground-muted)]',
+      };
+      timelineEvents.push({
+        time: a.timestamp,
+        icon: iconMap[a.type] || '📌',
+        color: colorMap[a.type] || 'border-[var(--foreground-muted)]',
+        title: a.action,
+        detail: [a.company, a.position].filter(Boolean).join(' · '),
+      });
+    });
+
+  // Interviews
+  appInterviews.forEach(i => {
+    timelineEvents.push({
+      time: `${i.date}T${i.time}`,
+      icon: i.type === '技术面' ? '💻' : i.type === 'HR面' ? '👤' : '🎤',
+      color: 'border-[var(--warning)]',
+      title: `${i.type} ${i.status === 'completed' ? '已完成' : i.status === 'upcoming' ? '待进行' : i.status}`,
+      detail: `${i.date} ${i.time}${i.interviewer ? ` · ${i.interviewer}` : ''}`,
+    });
+  });
+
+  // Exams
+  appExams.forEach(e => {
+    timelineEvents.push({
+      time: `${e.date}T${e.time}`,
+      icon: '✏️',
+      color: 'border-[var(--info)]',
+      title: `${e.type} ${e.status === 'completed' ? '已完成' : e.status === 'upcoming' ? '待进行' : e.status}`,
+      detail: `${e.date} ${e.time}`,
+    });
+  });
+
+  // Offers
+  appOffers.forEach(o => {
+    timelineEvents.push({
+      time: o.createdAt,
+      icon: '🏆',
+      color: 'border-[var(--success)]',
+      title: '收到 Offer',
+      detail: `薪资 ${o.salary.total ? `${o.salary.total}k` : `${o.salary.base}k`} · ${o.location}`,
+    });
+  });
+
+  // Sort by time descending (newest first)
+  timelineEvents.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 
   const tabs: { id: TabType; label: string; icon: string; disabled?: boolean }[] = [
     { id: 'overview', label: '概览', icon: '📌' },
@@ -514,11 +585,44 @@ export default function ApplicationDetailPage() {
             <div className="max-w-3xl">
               <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">📝 时间线</h3>
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">📅</div>
-                  <h4 className="text-lg font-semibold text-[var(--foreground)] mb-2">功能即将开放</h4>
-                  <p className="text-[var(--foreground-muted)]">后续版本将展示完整的操作日志</p>
-                </div>
+                {timelineEvents.length > 0 ? (
+                  <div className="relative pl-8">
+                    {/* Vertical line */}
+                    <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-[var(--border)]" />
+                    <div className="space-y-6">
+                      {timelineEvents.map((event, i) => (
+                        <div key={i} className="relative">
+                          {/* Dot */}
+                          <div className={`absolute -left-5 top-1 w-4 h-4 rounded-full border-2 bg-[var(--background)] ${event.color}`} />
+                          <div className="flex items-start gap-3">
+                            <span className="text-xl mt-0.5">{event.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-[var(--foreground)]">{event.title}</p>
+                              {event.detail && (
+                                <p className="text-sm text-[var(--foreground-light)] mt-0.5">{event.detail}</p>
+                              )}
+                              <p className="text-xs text-[var(--foreground-muted)] mt-1">
+                                {new Date(event.time).toLocaleString('zh-CN', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">📅</div>
+                    <h4 className="text-lg font-semibold text-[var(--foreground)] mb-2">暂无时间线记录</h4>
+                    <p className="text-[var(--foreground-muted)]">投递后的操作将自动记录在此</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
