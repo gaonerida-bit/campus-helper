@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
 import Button from '@/components/UI/Button';
+import { useToast } from '@/components/UI/Toast';
 import { useUserProfile, useDataManagement, useStats, useApp } from '@/context/DataContext';
 import { useSupabaseSync } from '@/hooks/useSupabaseSync';
 
@@ -13,6 +14,7 @@ export default function SettingsPage() {
   const { exportData, importData, clearAllData } = useDataManagement();
   const { stats } = useStats();
   const { isConfigured, lastSynced, isSyncing, error, syncToCloud, syncFromCloud, deviceId } = useSupabaseSync();
+  const { addToast } = useToast();
 
   const [noResponseDays, setNoResponseDays] = useState(userProfile.settings?.noResponseDays || 7);
   const [quietHoursStart, setQuietHoursStart] = useState(userProfile.settings?.quietHoursStart || '22:00');
@@ -41,8 +43,24 @@ export default function SettingsPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 水合完成后将本地 state 同步为实际持久化值，避免显示默认值覆盖已保存数据
+  useEffect(() => {
+    if (state.isHydrated) {
+      setName(userProfile.name);
+      setTitle(userProfile.title);
+      setNoResponseDays(userProfile.settings?.noResponseDays || 7);
+      setQuietHoursStart(userProfile.settings?.quietHoursStart || '22:00');
+      setQuietHoursEnd(userProfile.settings?.quietHoursEnd || '08:00');
+      setMonthlyBudget(userProfile.settings?.monthlyBudget || 100);
+      setTargetApplications(userProfile.goals?.applications || 50);
+      setTargetInterviews(userProfile.goals?.interviews || 20);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.isHydrated]);
+
   const handleSaveProfile = () => {
     update({ name, title });
+    addToast('success', '个人信息已保存');
   };
 
   const handleSaveGoals = () => {
@@ -53,6 +71,7 @@ export default function SettingsPage() {
         replies: userProfile.goals?.replies || 30,
       },
     });
+    addToast('success', '求职目标已保存');
   };
 
   const handleSaveSettings = () => {
@@ -65,10 +84,10 @@ export default function SettingsPage() {
         monthlyBudget,
       },
     });
-    // Save Kimi API Key
     if (apiKey) {
       localStorage.setItem('kimi-api-key', apiKey);
     }
+    addToast('success', '设置已保存');
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -470,13 +489,13 @@ export default function SettingsPage() {
                   <div>
                     <p className="font-medium text-[var(--foreground)]">同步状态</p>
                     <p className="text-sm text-[var(--foreground-muted)]">
-                      {isConfigured ? '✅ 已配置' : '⚠️ 未配置'}
+                      {isConfigured ? '✅ 环境变量已读取' : '⚠️ 未检测到环境变量'}
                     </p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-sm ${
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                     isConfigured ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'
                   }`}>
-                    {isConfigured ? '就绪' : '待配置'}
+                    {isConfigured ? '已配置完成' : '待配置'}
                   </span>
                 </div>
                 {deviceId && (
