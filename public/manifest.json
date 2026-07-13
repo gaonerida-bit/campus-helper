@@ -1,0 +1,28 @@
+{
+  "name": "校招助手",
+  "short_name": "校招助手",
+  "description": "帮助管理秋招投递进度、面试提醒、简历优化的智能助手",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#8B9A7D",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "education"],
+  "lang": "zh-CN",
+  "scope": "/",
+  "prefer_related_applications": false
+}
