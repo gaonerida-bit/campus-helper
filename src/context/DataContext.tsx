@@ -562,9 +562,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
             });
 
             if (hasData) {
-              dispatch({ type: 'HYDRATE', payload: cloudData });
+              // 若 Supabase 没有返回 userProfile（首次使用或写入曾失败），
+              // 从 localStorage 保留已保存的 userProfile，避免被默认值覆盖
+              let dataToHydrate = cloudData;
+              if (!cloudData.userProfile) {
+                const local = loadFromStorage();
+                if (local.userProfile) {
+                  dataToHydrate = { ...cloudData, userProfile: local.userProfile };
+                }
+              }
+              dispatch({ type: 'HYDRATE', payload: dataToHydrate });
               // Also save to localStorage as backup
-              saveToStorage({ ...initialState, ...cloudData, isHydrated: true, isLoading: false } as AppState);
+              saveToStorage({ ...initialState, ...dataToHydrate, isHydrated: true, isLoading: false } as AppState);
               return;
             }
           }

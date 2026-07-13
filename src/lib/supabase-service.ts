@@ -79,6 +79,11 @@ const FIELD_MAP: Record<string, Record<string, string>> = {
   activities: {
     createdAt: 'created_at',
   },
+  user_profiles: {
+    targetPositions: 'target_positions',
+    targetLocations: 'target_locations',
+    targetCompanies: 'target_companies',
+  },
 };
 
 // ============= Transform Functions =============
@@ -257,8 +262,8 @@ export async function fetchUserProfile(): Promise<any | null> {
 
     if (error || !data) return null;
 
-    const { user_id, ...profile } = data;
-    return profile;
+    const { user_id, ...profileData } = data;
+    return toCamelCase(profileData, 'user_profiles');
   } catch {
     return null;
   }
@@ -277,7 +282,7 @@ export async function syncUserProfile(profile: any): Promise<boolean> {
       .from('user_profiles')
       .upsert({
         user_id: userId,
-        ...profile,
+        ...toSnakeCase(profile, 'user_profiles'),
       });
 
     if (error) {
