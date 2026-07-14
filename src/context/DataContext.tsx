@@ -246,10 +246,10 @@ type Action =
 
 // ============= Initial State =============
 const defaultUserProfile: UserProfile = {
-  name: 'Nerida',
-  title: '前端开发工程师',
-  targetPositions: ['前端开发工程师', 'Web前端开发', '前端工程师'],
-  targetLocations: ['北京', '上海', '深圳'],
+  name: '',
+  title: '',
+  targetPositions: [],
+  targetLocations: [],
   goals: {
     applications: 50,
     interviews: 20,
@@ -455,7 +455,7 @@ const DATA_VERSION_KEY = 'campus-helper-version';
 const DATA_VERSION = 2; // v2: removed fake sample data injection
 
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { loadAllCollections, syncAllCollections, syncUserProfile } from '@/lib/supabase-service';
+import { loadAllCollections, syncAllCollections, syncUserProfile, clearAllSupabaseData } from '@/lib/supabase-service';
 import { useToast } from '@/components/UI/Toast';
 
 function generateId(): string {
@@ -465,16 +465,6 @@ function generateId(): string {
 function loadFromStorage(): Partial<AppState> {
   if (typeof window === 'undefined') return {};
   try {
-    // Migration gate: versions below DATA_VERSION had fake sample data injected.
-    // Wipe local storage once so the user starts with a blank slate.
-    const storedVersion = parseInt(localStorage.getItem(DATA_VERSION_KEY) || '0', 10);
-    if (storedVersion < DATA_VERSION) {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(INIT_KEY);
-      localStorage.setItem(DATA_VERSION_KEY, String(DATA_VERSION));
-      return {};
-    }
-
     const data = localStorage.getItem(STORAGE_KEY);
     if (data && data !== 'null' && data !== 'undefined') {
       const parsed = JSON.parse(data);
@@ -513,6 +503,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     async function hydrate() {
+      // ── Migration ──────────────────────────────────────────────────────────
+      // Versions below DATA_VERSION had fake sample data injected.
+      // Wipe both localStorage AND Supabase so users start with a blank slate.
+      const storedVersion = parseInt(localStorage.getItem(DATA_VERSION_KEY) || '0', 10);
+      if (storedVersion < DATA_VERSION) {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(INIT_KEY);
+        localStorage.setItem(DATA_VERSION_KEY, String(DATA_VERSION));
+        if (isSupabaseConfigured()) {
+          await clearAllSupabaseData().catch(() => {});
+        }
+        if (!cancelled) {
+          dispatch({ type: 'HYDRATE', payload: {} });
+        }
+        return;
+      }
+      // ── End Migration ──────────────────────────────────────────────────────
+
       // Try Supabase first if configured
       if (isSupabaseConfigured()) {
         try {
@@ -524,14 +532,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
             });
 
             if (hasData) {
-              // 若 Supabase 没有返回 userProfile（首次使用或写入曾失败），
-              // 从 localStorage 保留已保存的 userProfile，避免被默认值覆盖
+              // Always prefer localStorage userProfile over Supabase:
+              // localStorage is updated immediately on save; Supabase sync can lag
+              // and would otherwise overwrite the user's most-recent changes on refresh.
               let dataToHydrate = cloudData;
-              if (!cloudData.userProfile) {
-                const local = loadFromStorage();
-                if (local.userProfile) {
-                  dataToHydrate = { ...cloudData, userProfile: local.userProfile };
-                }
+              const local = loadFromStorage();
+              if (local.userProfile) {
+                dataToHydrate = { ...cloudData, userProfile: local.userProfile };
               }
               dispatch({ type: 'HYDRATE', payload: dataToHydrate });
               // Also save to localStorage as backup

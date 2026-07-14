@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useApp } from '@/context/DataContext';
 
 // 导航项配置
 const navItems = [
@@ -24,6 +25,9 @@ export default function Navigation() {
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const { state } = useApp();
+  const profileName = state.userProfile.name || '未设置昵称';
+  const profileInitial = state.userProfile.name ? state.userProfile.name.charAt(0).toUpperCase() : '?';
 
   useEffect(() => {
     const checkMobile = () => {
@@ -165,11 +169,11 @@ export default function Navigation() {
       <div className="p-4 border-t border-[var(--border)]">
         <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[var(--muted)]">
           <div className="w-10 h-10 rounded-full bg-[var(--primary)] flex items-center justify-center text-white font-medium">
-            N
+            {profileInitial}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-[var(--foreground)] truncate">
-              Nerida
+              {profileName}
             </p>
             <p className="text-xs text-[var(--foreground-muted)]">
               秋招进行中
