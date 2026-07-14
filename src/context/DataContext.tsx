@@ -449,7 +449,7 @@ const SUPABASE_SYNCED_KEY = 'campus-helper-supabase-synced';
 // ============= Sample Data =============
 import { sampleApplications, sampleInterviews, sampleContacts, sampleExams, sampleOffers, sampleResumes, sampleEvents, sampleQuestions } from '@/lib/sampleData';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { loadAllCollections, syncAllCollections } from '@/lib/supabase-service';
+import { loadAllCollections, syncAllCollections, syncUserProfile } from '@/lib/supabase-service';
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -617,6 +617,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     return () => clearTimeout(timer);
   }, [state]);
+
+  // userProfile 变更时立刻同步到 Supabase，不等防抖
+  // 防止用户保存后 3 秒内刷新导致数据丢失
+  useEffect(() => {
+    if (!state.isHydrated || !isSupabaseConfigured()) return;
+    syncUserProfile(state.userProfile).catch((err: any) => {
+      console.error('[DataContext] Failed to immediately sync user profile:', err);
+    });
+  }, [state.userProfile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const generateId = useCallback(() => {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
