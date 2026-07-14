@@ -297,6 +297,44 @@ export async function syncUserProfile(profile: any): Promise<boolean> {
 }
 
 /**
+ * Delete all data for the current device from every table (hard reset)
+ */
+export async function clearAllSupabaseData(): Promise<boolean> {
+  if (!isSupabaseConfigured() || !supabase) return false;
+
+  const userId = getDeviceId();
+  const uniqueTables = [...new Set(Object.values(TABLE_MAP))];
+  let allSuccess = true;
+
+  for (const table of uniqueTables) {
+    try {
+      const { error } = await supabase.from(table).delete().eq('user_id', userId);
+      if (error) {
+        console.error(`[Supabase] Failed to clear ${table}:`, error.message);
+        allSuccess = false;
+      }
+    } catch (err: any) {
+      console.error(`[Supabase] Exception clearing ${table}:`, err.message);
+      allSuccess = false;
+    }
+  }
+
+  // Clear user profile (separate table, not in TABLE_MAP)
+  try {
+    const { error } = await supabase.from('user_profiles').delete().eq('user_id', userId);
+    if (error) {
+      console.error('[Supabase] Failed to clear user_profiles:', error.message);
+      allSuccess = false;
+    }
+  } catch (err: any) {
+    console.error('[Supabase] Exception clearing user_profiles:', err.message);
+    allSuccess = false;
+  }
+
+  return allSuccess;
+}
+
+/**
  * Sync all collections to Supabase (full sync)
  */
 export async function syncAllCollections(state: Record<string, any>): Promise<boolean> {

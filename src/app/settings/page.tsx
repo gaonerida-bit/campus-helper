@@ -7,6 +7,7 @@ import Button from '@/components/UI/Button';
 import { useToast } from '@/components/UI/Toast';
 import { useUserProfile, useDataManagement, useStats, useApp } from '@/context/DataContext';
 import { useSupabaseSync } from '@/hooks/useSupabaseSync';
+import { clearAllSupabaseData } from '@/lib/supabase-service';
 
 export default function SettingsPage() {
   const { state } = useApp();
@@ -88,6 +89,15 @@ export default function SettingsPage() {
       localStorage.setItem('kimi-api-key', apiKey);
     }
     addToast('success', '设置已保存');
+  };
+
+  const handleClearAllData = async () => {
+    if (!window.confirm('确定要清除所有数据吗？此操作不可恢复。')) return;
+    clearAllData();
+    if (isConfigured) {
+      await clearAllSupabaseData();
+    }
+    addToast('success', '所有数据已清除');
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -421,13 +431,13 @@ export default function SettingsPage() {
                       <span className="text-xl">⚠️</span>
                     </div>
                     <div>
-                      <p className="font-medium text-red-600">清除所有数据</p>
-                      <p className="text-sm text-red-400">不可恢复，请先导出备份</p>
+                      <p className="font-medium text-red-600">清除所有数据（重置为空白）</p>
+                      <p className="text-sm text-red-400">不可恢复，同时清除本地及云端数据</p>
                     </div>
                   </div>
                   <Button
                     variant="secondary"
-                    onClick={clearAllData}
+                    onClick={handleClearAllData}
                     className="bg-red-100 text-red-600 hover:bg-red-200 border-0"
                   >
                     清除

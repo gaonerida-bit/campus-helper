@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useState, useRef, ReactNode } from 'react';
 
 // ============= Types =============
 export interface Application {
@@ -430,6 +430,9 @@ function appReducer(state: AppState, action: Action): AppState {
   }
 }
 
+// ============= Sync Status =============
+export type SyncStatus = 'idle' | 'saving' | 'syncing' | 'synced' | 'error';
+
 // ============= Context =============
 interface AppContextType {
   state: AppState;
@@ -437,6 +440,7 @@ interface AppContextType {
   // Helper functions
   generateId: () => string;
   addActivity: (type: Activity['type'], action: string, company?: string, position?: string) => void;
+  syncStatus: SyncStatus;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -446,10 +450,9 @@ const STORAGE_KEY = 'campus-helper-data';
 const INIT_KEY = 'campus-helper-initialized';
 const SUPABASE_SYNCED_KEY = 'campus-helper-supabase-synced';
 
-// ============= Sample Data =============
-import { sampleApplications, sampleInterviews, sampleContacts, sampleExams, sampleOffers, sampleResumes, sampleEvents, sampleQuestions } from '@/lib/sampleData';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { loadAllCollections, syncAllCollections, syncUserProfile } from '@/lib/supabase-service';
+import { useToast } from '@/components/UI/Toast';
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -466,66 +469,6 @@ function loadFromStorage(): Partial<AppState> {
         return parsed;
       }
     }
-
-    // Only load sample data if INIT_KEY doesn't exist AND no valid data
-    // This prevents sample data from reloading after user deletes items
-    if (!localStorage.getItem(INIT_KEY)) {
-      const now = new Date().toISOString();
-      const sampleData: Partial<AppState> = {
-        applications: sampleApplications.map(a => ({
-          ...a,
-          id: generateId(),
-          createdAt: now,
-          updatedAt: now,
-        })),
-        interviews: sampleInterviews.map(i => ({
-          ...i,
-          id: generateId(),
-          createdAt: now,
-        })),
-        contacts: sampleContacts.map(c => ({
-          ...c,
-          id: generateId(),
-          createdAt: now,
-        })),
-        exams: sampleExams.map(e => ({
-          ...e,
-          id: generateId(),
-          createdAt: now,
-        })),
-        questions: sampleQuestions.map(q => ({
-          ...q,
-          id: generateId(),
-          createdAt: now,
-        })),
-        offers: sampleOffers.map(o => ({
-          ...o,
-          id: generateId(),
-          createdAt: now,
-        })),
-        resumes: sampleResumes.map(r => ({
-          ...r,
-          id: generateId(),
-          createdAt: now,
-          updatedAt: now,
-          version: 1,
-        })),
-        events: sampleEvents.map(e => ({
-          ...e,
-          id: generateId(),
-          createdAt: now,
-        })),
-        activities: [],
-        chatHistory: [],
-      };
-
-      // Save sample data to storage
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sampleData));
-      localStorage.setItem(INIT_KEY, 'true');
-
-      return sampleData;
-    }
-
     return {};
   } catch {
     return {};
@@ -545,6 +488,10 @@ function saveToStorage(state: AppState): void {
 // ============= Provider =============
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+  // Track whether the initial hydration has been processed (to avoid showing
+  // the "saving" indicator on app load when data is just being loaded)
+  const isFirstHydrationRef = useRef(true);
 
   // Hydrate from Supabase (primary) or localStorage (fallback) on mount
   useEffect(() => {
@@ -593,30 +540,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, []);
 
-  // Persist to localStorage on state change
+  // Persist to localStorage on state change + update syncStatus
   useEffect(() => {
-    if (state.isHydrated) {
-      saveToStorage(state);
+    if (!state.isHydrated) return;
+    saveToStorage(state);
+    // Skip sync status display for the initial hydration load
+    if (isFirstHydrationRef.current) {
+      isFirstHydrationRef.current = false;
+      return;
+    }
+    setSyncStatus('saving');
+    if (!isSupabaseConfigured()) {
+      const t = setTimeout(() => setSyncStatus('idle'), 2000);
+      return () => clearTimeout(t);
     }
   }, [state]);
 
-  // Sync to Supabase on state change (debounced)
+  // Sync to Supabase on state change (debounced, 3s)
   useEffect(() => {
     if (!state.isHydrated || !isSupabaseConfigured()) return;
 
-    // Skip if already synced to Supabase before and data hasn't changed meaningfully
     const timer = setTimeout(async () => {
+      setSyncStatus('syncing');
       try {
         await syncAllCollections(state);
-        // Mark as synced so we don't re-upload sample data unnecessarily
         localStorage.setItem(SUPABASE_SYNCED_KEY, 'true');
+        setSyncStatus('synced');
+        setTimeout(() => setSyncStatus('idle'), 3000);
       } catch (err) {
+        setSyncStatus('error');
         console.error('[DataContext] Failed to sync to Supabase:', err);
       }
-    }, 3000); // 3 second debounce
+    }, 3000);
 
     return () => clearTimeout(timer);
-  }, [state]);
+  }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // userProfile 变更时立刻同步到 Supabase，不等防抖
   // 防止用户保存后 3 秒内刷新导致数据丢失
@@ -649,7 +607,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [generateId]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch, generateId, addActivity }}>
+    <AppContext.Provider value={{ state, dispatch, generateId, addActivity, syncStatus }}>
       {children}
     </AppContext.Provider>
   );
@@ -664,8 +622,13 @@ export function useApp() {
   return context;
 }
 
+export function useSyncStatus(): SyncStatus {
+  return useApp().syncStatus;
+}
+
 export function useApplications() {
   const { state, dispatch, generateId, addActivity } = useApp();
+  const { addToast } = useToast();
 
   const add = useCallback((data: Omit<Application, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date().toISOString();
@@ -677,16 +640,21 @@ export function useApplications() {
     };
     dispatch({ type: 'ADD_APPLICATION', payload: application });
     addActivity('application', `投递 ${application.company} - ${application.position}`, application.company, application.position);
+    addToast('success', `已添加 ${application.company} 的投递记录`, 2000);
     return application;
-  }, [dispatch, generateId, addActivity]);
+  }, [dispatch, generateId, addActivity, addToast]);
 
   const update = useCallback((id: string, data: Partial<Application>) => {
+    const app = state.applications.find(a => a.id === id);
     dispatch({ type: 'UPDATE_APPLICATION', payload: { id, data } });
-  }, [dispatch]);
+    addToast('success', app ? `已更新 ${app.company} 的信息` : '已更新投递信息', 2000);
+  }, [dispatch, state.applications, addToast]);
 
   const remove = useCallback((id: string) => {
+    const app = state.applications.find(a => a.id === id);
     dispatch({ type: 'DELETE_APPLICATION', payload: id });
-  }, [dispatch]);
+    addToast('info', app ? `已删除 ${app.company} 的投递记录` : '已删除投递记录', 2000);
+  }, [dispatch, state.applications, addToast]);
 
   return {
     applications: state.applications,
@@ -698,6 +666,7 @@ export function useApplications() {
 
 export function useInterviews() {
   const { state, dispatch, generateId, addActivity } = useApp();
+  const { addToast } = useToast();
 
   const add = useCallback((data: Omit<Interview, 'id' | 'createdAt'>) => {
     const interview: Interview = {
@@ -707,16 +676,20 @@ export function useInterviews() {
     };
     dispatch({ type: 'ADD_INTERVIEW', payload: interview });
     addActivity('interview', `添加面试 ${interview.company} - ${interview.type}`, interview.company, interview.position);
+    addToast('success', `已添加 ${interview.company} 的面试记录`, 2000);
     return interview;
-  }, [dispatch, generateId, addActivity]);
+  }, [dispatch, generateId, addActivity, addToast]);
 
   const update = useCallback((id: string, data: Partial<Interview>) => {
+    const interview = state.interviews.find(i => i.id === id);
     dispatch({ type: 'UPDATE_INTERVIEW', payload: { id, data } });
-  }, [dispatch]);
+    addToast('success', interview ? `已更新 ${interview.company} 的面试信息` : '已更新面试信息', 2000);
+  }, [dispatch, state.interviews, addToast]);
 
   const remove = useCallback((id: string) => {
     dispatch({ type: 'DELETE_INTERVIEW', payload: id });
-  }, [dispatch]);
+    addToast('info', '已删除面试记录', 2000);
+  }, [dispatch, addToast]);
 
   return {
     interviews: state.interviews,
@@ -730,6 +703,7 @@ export function useInterviews() {
 
 export function useContacts() {
   const { state, dispatch, generateId, addActivity } = useApp();
+  const { addToast } = useToast();
 
   const add = useCallback((data: Omit<Contact, 'id' | 'createdAt'>) => {
     const contact: Contact = {
@@ -739,16 +713,20 @@ export function useContacts() {
     };
     dispatch({ type: 'ADD_CONTACT', payload: contact });
     addActivity('contact', `添加联系人 ${contact.name}`, contact.company);
+    addToast('success', `已添加联系人 ${contact.name}`, 2000);
     return contact;
-  }, [dispatch, generateId, addActivity]);
+  }, [dispatch, generateId, addActivity, addToast]);
 
   const update = useCallback((id: string, data: Partial<Contact>) => {
+    const contact = state.contacts.find(c => c.id === id);
     dispatch({ type: 'UPDATE_CONTACT', payload: { id, data } });
-  }, [dispatch]);
+    addToast('success', contact ? `已更新 ${contact.name} 的信息` : '已更新联系人信息', 2000);
+  }, [dispatch, state.contacts, addToast]);
 
   const remove = useCallback((id: string) => {
     dispatch({ type: 'DELETE_CONTACT', payload: id });
-  }, [dispatch]);
+    addToast('info', '已删除联系人', 2000);
+  }, [dispatch, addToast]);
 
   return {
     contacts: state.contacts,
@@ -789,6 +767,7 @@ export function useCompanyProfiles() {
 
 export function useExams() {
   const { state, dispatch, generateId, addActivity } = useApp();
+  const { addToast } = useToast();
 
   const add = useCallback((data: Omit<Exam, 'id' | 'createdAt'>) => {
     const exam: Exam = {
@@ -798,16 +777,20 @@ export function useExams() {
     };
     dispatch({ type: 'ADD_EXAM', payload: exam });
     addActivity('interview', `添加笔试 ${exam.company} - ${exam.type}`, exam.company);
+    addToast('success', `已添加 ${exam.company} 的笔试`, 2000);
     return exam;
-  }, [dispatch, generateId, addActivity]);
+  }, [dispatch, generateId, addActivity, addToast]);
 
   const update = useCallback((id: string, data: Partial<Exam>) => {
+    const exam = state.exams.find(e => e.id === id);
     dispatch({ type: 'UPDATE_EXAM', payload: { id, data } });
-  }, [dispatch]);
+    addToast('success', exam ? `已更新 ${exam.company} 的笔试信息` : '已更新笔试信息', 2000);
+  }, [dispatch, state.exams, addToast]);
 
   const remove = useCallback((id: string) => {
     dispatch({ type: 'DELETE_EXAM', payload: id });
-  }, [dispatch]);
+    addToast('info', '已删除笔试记录', 2000);
+  }, [dispatch, addToast]);
 
   return {
     exams: state.exams,
@@ -821,6 +804,7 @@ export function useExams() {
 
 export function useQuestions() {
   const { state, dispatch, generateId } = useApp();
+  const { addToast } = useToast();
 
   const add = useCallback((data: Omit<Question, 'id' | 'createdAt'>) => {
     const question: Question = {
@@ -829,16 +813,19 @@ export function useQuestions() {
       createdAt: new Date().toISOString(),
     };
     dispatch({ type: 'ADD_QUESTION', payload: question });
+    addToast('success', '已添加题目', 2000);
     return question;
-  }, [dispatch, generateId]);
+  }, [dispatch, generateId, addToast]);
 
   const update = useCallback((id: string, data: Partial<Question>) => {
     dispatch({ type: 'UPDATE_QUESTION', payload: { id, data } });
-  }, [dispatch]);
+    addToast('success', '已更新题目', 2000);
+  }, [dispatch, addToast]);
 
   const remove = useCallback((id: string) => {
     dispatch({ type: 'DELETE_QUESTION', payload: id });
-  }, [dispatch]);
+    addToast('info', '已删除题目', 2000);
+  }, [dispatch, addToast]);
 
   const toggleStar = useCallback((id: string) => {
     const question = state.questions.find(q => q.id === id);
@@ -859,6 +846,7 @@ export function useQuestions() {
 
 export function useEvents() {
   const { state, dispatch, generateId } = useApp();
+  const { addToast } = useToast();
 
   const add = useCallback((data: Omit<CalendarEvent, 'id' | 'createdAt'>) => {
     const event: CalendarEvent = {
@@ -867,16 +855,19 @@ export function useEvents() {
       createdAt: new Date().toISOString(),
     };
     dispatch({ type: 'ADD_EVENT', payload: event });
+    addToast('success', `已添加日历事件：${event.title}`, 2000);
     return event;
-  }, [dispatch, generateId]);
+  }, [dispatch, generateId, addToast]);
 
   const update = useCallback((id: string, data: Partial<CalendarEvent>) => {
     dispatch({ type: 'UPDATE_EVENT', payload: { id, data } });
-  }, [dispatch]);
+    addToast('success', '已更新日历事件', 2000);
+  }, [dispatch, addToast]);
 
   const remove = useCallback((id: string) => {
     dispatch({ type: 'DELETE_EVENT', payload: id });
-  }, [dispatch]);
+    addToast('info', '已删除日历事件', 2000);
+  }, [dispatch, addToast]);
 
   return {
     events: state.events,
@@ -888,6 +879,7 @@ export function useEvents() {
 
 export function useOffers() {
   const { state, dispatch, generateId, addActivity } = useApp();
+  const { addToast } = useToast();
 
   const add = useCallback((data: Omit<Offer, 'id' | 'createdAt'>) => {
     const offer: Offer = {
@@ -897,16 +889,20 @@ export function useOffers() {
     };
     dispatch({ type: 'ADD_OFFER', payload: offer });
     addActivity('offer', `收到 Offer: ${offer.company} - ${offer.position}`, offer.company, offer.position);
+    addToast('success', `已添加 ${offer.company} 的 Offer`, 2000);
     return offer;
-  }, [dispatch, generateId, addActivity]);
+  }, [dispatch, generateId, addActivity, addToast]);
 
   const update = useCallback((id: string, data: Partial<Offer>) => {
+    const offer = state.offers.find(o => o.id === id);
     dispatch({ type: 'UPDATE_OFFER', payload: { id, data } });
-  }, [dispatch]);
+    addToast('success', offer ? `已更新 ${offer.company} 的 Offer 信息` : '已更新 Offer 信息', 2000);
+  }, [dispatch, state.offers, addToast]);
 
   const remove = useCallback((id: string) => {
     dispatch({ type: 'DELETE_OFFER', payload: id });
-  }, [dispatch]);
+    addToast('info', '已删除 Offer 记录', 2000);
+  }, [dispatch, addToast]);
 
   return {
     offers: state.offers,
@@ -918,6 +914,7 @@ export function useOffers() {
 
 export function useResumes() {
   const { state, dispatch, generateId } = useApp();
+  const { addToast } = useToast();
 
   const add = useCallback((data: Omit<Resume, 'id' | 'createdAt' | 'updatedAt' | 'version'>) => {
     const resume: Resume = {
@@ -928,16 +925,20 @@ export function useResumes() {
       updatedAt: new Date().toISOString(),
     };
     dispatch({ type: 'ADD_RESUME', payload: resume });
+    addToast('success', `已添加简历「${resume.title}」`, 2000);
     return resume;
-  }, [dispatch, generateId]);
+  }, [dispatch, generateId, addToast]);
 
   const update = useCallback((id: string, data: Partial<Resume>) => {
+    const resume = state.resumes.find(r => r.id === id);
     dispatch({ type: 'UPDATE_RESUME', payload: { id, data } });
-  }, [dispatch]);
+    addToast('success', resume ? `已更新简历「${resume.title}」` : '已更新简历', 2000);
+  }, [dispatch, state.resumes, addToast]);
 
   const remove = useCallback((id: string) => {
     dispatch({ type: 'DELETE_RESUME', payload: id });
-  }, [dispatch]);
+    addToast('info', '已删除简历', 2000);
+  }, [dispatch, addToast]);
 
   const duplicate = useCallback((id: string) => {
     const resume = state.resumes.find(r => r.id === id);
@@ -952,9 +953,10 @@ export function useResumes() {
         updatedAt: new Date().toISOString(),
       };
       dispatch({ type: 'ADD_RESUME', payload: newResume });
+      addToast('success', `已复制简历「${resume.title}」`, 2000);
       return newResume;
     }
-  }, [dispatch, generateId, state.resumes]);
+  }, [dispatch, generateId, state.resumes, addToast]);
 
   return {
     resumes: state.resumes,
@@ -1084,11 +1086,9 @@ export function useDataManagement() {
   }, []);
 
   const clearAllData = useCallback(() => {
-    if (confirm('确定要清除所有数据吗？此操作不可恢复！')) {
-      dispatch({ type: 'CLEAR_ALL_DATA' });
-      localStorage.removeItem(STORAGE_KEY);
-      window.location.reload();
-    }
+    dispatch({ type: 'CLEAR_ALL_DATA' });
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(INIT_KEY);
   }, [dispatch]);
 
   return { exportData, importData, clearAllData };
