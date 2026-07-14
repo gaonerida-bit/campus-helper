@@ -242,6 +242,7 @@ type Action =
   | { type: 'ADD_CHAT_MESSAGE'; payload: ChatMessage }
   | { type: 'CLEAR_CHAT_HISTORY' }
   | { type: 'ADD_ACTIVITY'; payload: Activity }
+  | { type: 'CLEAN_ORPHAN_DATA' }
   | { type: 'CLEAR_ALL_DATA' };
 
 // ============= Initial State =============
@@ -282,6 +283,62 @@ const initialState: AppState = {
   isHydrated: false,
 };
 
+// ============= Data Consistency =============
+// Removes orphan records from all modules that don't match existing applications.
+// Applications is the "master table"; all other modules must reference it.
+function validateDataConsistency(state: AppState): AppState {
+  const validCompanies = new Set(state.applications.map(a => a.company.trim()));
+  const validAppIds = new Set(state.applications.map(a => a.id));
+
+  // Interviews: applicationId must exist in applications AND company must match
+  const validInterviews = state.interviews.filter(i =>
+    i.applicationId != null && validAppIds.has(i.applicationId) && validCompanies.has(i.company.trim())
+  );
+
+  // Exams: applicationId must exist in applications AND company must match
+  const validExams = state.exams.filter(e =>
+    e.applicationId != null && validAppIds.has(e.applicationId) && validCompanies.has(e.company.trim())
+  );
+
+  // Contacts: company allowed to be empty; if set, must match an application
+  const validContacts = state.contacts.filter(c =>
+    !c.company || validCompanies.has(c.company.trim())
+  );
+
+  // Calendar events: company allowed to be empty; if set, must match an application
+  const validEvents = state.events.filter(e =>
+    !e.company || validCompanies.has(e.company.trim())
+  );
+
+  // Offers: company + position must match an application exactly
+  const validOffers = state.offers.filter(o =>
+    state.applications.some(
+      a => a.company.trim() === o.company.trim() && a.position.trim() === o.position.trim()
+    )
+  );
+
+  // Company profiles: name must match an application company
+  const validProfiles = state.companyProfiles.filter(p =>
+    validCompanies.has(p.name.trim())
+  );
+
+  // Activities: company allowed to be empty; if set, must match an application
+  const validActivities = state.activities.filter(a =>
+    !a.company || validCompanies.has(a.company.trim())
+  );
+
+  return {
+    ...state,
+    interviews: validInterviews,
+    exams: validExams,
+    contacts: validContacts,
+    events: validEvents,
+    offers: validOffers,
+    companyProfiles: validProfiles,
+    activities: validActivities,
+  };
+}
+
 // ============= Reducer =============
 function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -298,11 +355,50 @@ function appReducer(state: AppState, action: Action): AppState {
           app.id === action.payload.id ? { ...app, ...action.payload.data, updatedAt: new Date().toISOString() } : app
         ),
       };
-    case 'DELETE_APPLICATION':
-      return {
+    case 'DELETE_APPLICATION': {
+      const appId = action.payload;
+      const app = state.applications.find(a => a.id === appId);
+      const appCompany = app?.company?.trim();
+
+      const newApplications = state.applications.filter(a => a.id !== appId);
+
+      // Always cascade-delete interviews and exams linked by applicationId
+      const newInterviews = state.interviews.filter(i => i.applicationId !== appId);
+      const newExams = state.exams.filter(e => e.applicationId !== appId);
+
+      // For company-scoped data: only remove if this was the LAST application for the company
+      const hasOtherAppsForCompany = newApplications.some(a => a.company.trim() === appCompany);
+
+      const newContacts = hasOtherAppsForCompany
+        ? state.contacts
+        : state.contacts.filter(c => c.company?.trim() !== appCompany);
+
+      const newEvents = hasOtherAppsForCompany
+        ? state.events
+        : state.events.filter(e => e.company?.trim() !== appCompany);
+
+      const newOffers = hasOtherAppsForCompany
+        ? state.offers
+        : state.offers.filter(o => o.company?.trim() !== appCompany);
+
+      const newProfiles = hasOtherAppsForCompany
+        ? state.companyProfiles
+        : state.companyProfiles.filter(p => p.name?.trim() !== appCompany);
+
+      const newActivities = state.activities.filter(a => a.company?.trim() !== appCompany);
+
+      return validateDataConsistency({
         ...state,
-        applications: state.applications.filter((app) => app.id !== action.payload),
-      };
+        applications: newApplications,
+        interviews: newInterviews,
+        exams: newExams,
+        contacts: newContacts,
+        events: newEvents,
+        offers: newOffers,
+        companyProfiles: newProfiles,
+        activities: newActivities,
+      });
+    }
     case 'ADD_INTERVIEW':
       return { ...state, interviews: [action.payload, ...state.interviews] };
     case 'UPDATE_INTERVIEW':
@@ -423,6 +519,8 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, chatHistory: [] };
     case 'ADD_ACTIVITY':
       return { ...state, activities: [action.payload, ...state.activities].slice(0, 100) };
+    case 'CLEAN_ORPHAN_DATA':
+      return validateDataConsistency(state);
     case 'CLEAR_ALL_DATA':
       return { ...initialState, isHydrated: true, isLoading: false };
     default:
@@ -1074,7 +1172,7 @@ export function useStats() {
 }
 
 export function useDataManagement() {
-  const { dispatch } = useApp();
+  const { state, dispatch } = useApp();
 
   const exportData = useCallback(() => {
     const data = localStorage.getItem(STORAGE_KEY);
@@ -1113,5 +1211,20 @@ export function useDataManagement() {
     localStorage.removeItem(INIT_KEY);
   }, [dispatch]);
 
-  return { exportData, importData, clearAllData };
+  // Returns the count of orphan records that were removed
+  const cleanOrphanData = useCallback(() => {
+    const cleaned = validateDataConsistency(state);
+    const count =
+      (state.interviews.length - cleaned.interviews.length) +
+      (state.exams.length - cleaned.exams.length) +
+      (state.contacts.length - cleaned.contacts.length) +
+      (state.events.length - cleaned.events.length) +
+      (state.offers.length - cleaned.offers.length) +
+      (state.companyProfiles.length - cleaned.companyProfiles.length) +
+      (state.activities.length - cleaned.activities.length);
+    dispatch({ type: 'CLEAN_ORPHAN_DATA' });
+    return count;
+  }, [state, dispatch]);
+
+  return { exportData, importData, clearAllData, cleanOrphanData };
 }

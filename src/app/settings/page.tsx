@@ -12,7 +12,7 @@ import { clearAllSupabaseData } from '@/lib/supabase-service';
 export default function SettingsPage() {
   const { state } = useApp();
   const { userProfile, update } = useUserProfile();
-  const { exportData, importData, clearAllData } = useDataManagement();
+  const { exportData, importData, clearAllData, cleanOrphanData } = useDataManagement();
   const { stats } = useStats();
   const { isConfigured, lastSynced, isSyncing, error, syncToCloud, syncFromCloud, deviceId } = useSupabaseSync();
   const { addToast } = useToast();
@@ -98,6 +98,12 @@ export default function SettingsPage() {
       await clearAllSupabaseData();
     }
     addToast('success', '所有数据已清除');
+  };
+
+  const handleCleanOrphanData = () => {
+    if (!window.confirm('将删除所有与投递记录不匹配的数据（面试、笔试、联系人、日历、Offer、公司档案）。确定吗？')) return;
+    const count = cleanOrphanData();
+    addToast('success', count > 0 ? `已清理 ${count} 条孤儿数据` : '没有需要清理的孤儿数据');
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -424,7 +430,26 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-[var(--border)]">
+              <div className="pt-4 border-t border-[var(--border)] space-y-3">
+                <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+                      <span className="text-xl">🧹</span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-yellow-700">清理孤儿数据（以投递为准）</p>
+                      <p className="text-sm text-yellow-600">删除与投递记录不匹配的面试、笔试、联系人等</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={handleCleanOrphanData}
+                    className="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-0"
+                  >
+                    清理
+                  </Button>
+                </div>
+
                 <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
