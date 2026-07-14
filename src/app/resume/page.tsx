@@ -6,7 +6,7 @@ import Header from '@/components/Layout/Header';
 import Button from '@/components/UI/Button';
 import ExportResumeModal from '@/components/Resume/ExportResumeModal';
 import { ResumeData } from '@/components/Resume/PrintableResume';
-import { useResumes } from '@/context/DataContext';
+import { useUserProfile } from '@/context/DataContext';
 
 // 简历版本接口
 interface Resume {
@@ -78,50 +78,6 @@ interface SelfEvaluation {
   updatedAt: string;
 }
 
-// 初始数据
-const resumes: Resume[] = [
-  { id: 1, name: '通用前端简历', version: 'v3.2', lastUsed: '今天', isDefault: true, tags: ['前端', 'React', 'TypeScript'] },
-  { id: 2, name: '字节跳动专用', version: 'v1.0', lastUsed: '昨天', isDefault: false, tags: ['大厂', '前端'], forCompany: '字节跳动' },
-  { id: 3, name: '大厂专用版', version: 'v2.1', lastUsed: '3天前', isDefault: false, tags: ['大厂', '全栈'] },
-  { id: 4, name: '国企/外企版', version: 'v1.5', lastUsed: '1周前', isDefault: false, tags: ['国企', '外企'] },
-];
-
-// 素材库初始数据
-const initialEducation: Education[] = [
-  { id: '1', school: '北京大学', major: '计算机科学与技术', degree: '本科', startDate: '2019-09', endDate: '2023-06', gpa: '3.8/4.0', courses: '数据结构、算法、操作系统、计算机网络', isHighlight: true },
-  { id: '2', school: '加州大学伯克利分校', major: 'CS', degree: '交换生', startDate: '2022-01', endDate: '2022-06', gpa: '3.9/4.0', courses: 'Machine Learning, Distributed Systems', isHighlight: false },
-];
-
-const initialExperience: Experience[] = [
-  { id: '1', company: '字节跳动', position: '前端开发实习生', startDate: '2023-06', endDate: '2023-09', content: '参与公司内部管理系统开发\n使用 React + TypeScript 开发核心模块\n独立负责用户权限模块', achievements: '优化页面加载速度 40%', isHighlight: true },
-  { id: '2', company: '腾讯', position: '前端开发实习生', startDate: '2024-03', endDate: '2024-08', content: '参与微信小程序开发\n使用 Taro 跨端框架\n负责社区功能模块', achievements: '日活提升 15%', isHighlight: true },
-];
-
-const initialProjects: Project[] = [
-  { id: '1', name: '校园博客系统', role: '独立开发', startDate: '2023-01', endDate: '2023-03', description: '使用 Next.js + MySQL 开发的校园博客平台\n支持 Markdown 编辑、评论、点赞', techStack: 'Next.js, MySQL, TailwindCSS, Prisma', achievements: '日活 1000+，部署在 Vercel', isHighlight: false },
-  { id: '2', name: '智能简历筛选系统', role: '核心开发', startDate: '2023-07', endDate: '2023-09', description: '基于 AI 的简历筛选工具\n自动解析简历关键信息', techStack: 'React, Node.js, OpenAI API, MongoDB', achievements: '获校级创新创业大赛银奖', isHighlight: true },
-];
-
-const initialSkills: Skill[] = [
-  { id: '1', name: 'React/Vue', proficiency: '熟练', category: '前端框架', isHighlight: true },
-  { id: '2', name: 'TypeScript', proficiency: '熟练', category: '编程语言', isHighlight: true },
-  { id: '3', name: 'Node.js', proficiency: '了解', category: '后端', isHighlight: false },
-  { id: '4', name: 'Python', proficiency: '了解', category: '编程语言', isHighlight: false },
-  { id: '5', name: 'MySQL/MongoDB', proficiency: '熟练', category: '数据库', isHighlight: true },
-  { id: '6', name: 'Git/Docker', proficiency: '熟练', category: '工具', isHighlight: false },
-];
-
-const initialHonors: Honor[] = [
-  { id: '1', name: '校级一等奖学金', level: '校级', date: '2021-2022', description: '连续两年获校级一等奖学金', isHighlight: true },
-  { id: '2', name: '优秀学生干部', level: '院级', date: '2022', description: '担任学生会技术部部长', isHighlight: false },
-  { id: '3', name: 'ACM 区域赛铜奖', level: '省级', date: '2022-10', description: 'ICPC 亚洲区域赛', isHighlight: true },
-];
-
-const initialSelfEvaluation: SelfEvaluation = {
-  id: '1',
-  content: '热爱前端技术，有扎实的计算机基础。具有良好的代码风格和团队协作能力。善于总结和分享，技术博客累计阅读量超过 10 万。',
-  updatedAt: '2024-01-15',
-};
 
 type MaterialSection = 'education' | 'experience' | 'project' | 'skill' | 'honor' | 'selfEvaluation';
 
@@ -674,16 +630,20 @@ function SelfEvaluationForm({
 }
 
 export default function ResumePage() {
+  const { userProfile } = useUserProfile();
   const [activeTab, setActiveTab] = useState<'resumes' | 'materials'>('resumes');
   const [filterSection, setFilterSection] = useState<string>('all');
 
+  // 简历版本列表（本地状态，暂未持久化）
+  const [resumes, setResumes] = useState<Resume[]>([]);
+
   // 素材库数据状态
-  const [education, setEducation] = useState<Education[]>(initialEducation);
-  const [experience, setExperience] = useState<Experience[]>(initialExperience);
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
-  const [skills, setSkills] = useState<Skill[]>(initialSkills);
-  const [honors, setHonors] = useState<Honor[]>(initialHonors);
-  const [selfEvaluation, setSelfEvaluation] = useState<SelfEvaluation>(initialSelfEvaluation);
+  const [education, setEducation] = useState<Education[]>([]);
+  const [experience, setExperience] = useState<Experience[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [honors, setHonors] = useState<Honor[]>([]);
+  const [selfEvaluation, setSelfEvaluation] = useState<SelfEvaluation>({ id: '1', content: '', updatedAt: '' });
 
   // 表单状态
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -698,11 +658,11 @@ export default function ResumePage() {
   // 生成导出数据
   const generateExportData = (): ResumeData => {
     return {
-      name: 'Nerida',
+      name: userProfile.name || '',
       contact: {
-        phone: '138-xxxx-xxxx',
-        email: 'nerida@example.com',
-        location: '北京',
+        phone: userProfile.phone || '',
+        email: userProfile.email || '',
+        location: userProfile.targetLocations?.[0] || '',
       },
       education: education.map(e => ({
         school: e.school,

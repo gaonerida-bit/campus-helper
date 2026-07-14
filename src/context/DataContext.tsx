@@ -550,7 +550,7 @@ const SUPABASE_SYNCED_KEY = 'campus-helper-supabase-synced';
 // Increment DATA_VERSION whenever a migration is needed (e.g. removing old sample data).
 // On first load after a version bump all local data is cleared so users start fresh.
 const DATA_VERSION_KEY = 'campus-helper-version';
-const DATA_VERSION = 2; // v2: removed fake sample data injection
+const DATA_VERSION = 3; // v3: removed fake sample data from resume page
 
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { loadAllCollections, syncAllCollections, syncUserProfile, clearAllSupabaseData } from '@/lib/supabase-service';
