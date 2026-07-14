@@ -449,6 +449,10 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const STORAGE_KEY = 'campus-helper-data';
 const INIT_KEY = 'campus-helper-initialized';
 const SUPABASE_SYNCED_KEY = 'campus-helper-supabase-synced';
+// Increment DATA_VERSION whenever a migration is needed (e.g. removing old sample data).
+// On first load after a version bump all local data is cleared so users start fresh.
+const DATA_VERSION_KEY = 'campus-helper-version';
+const DATA_VERSION = 2; // v2: removed fake sample data injection
 
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { loadAllCollections, syncAllCollections, syncUserProfile } from '@/lib/supabase-service';
@@ -461,6 +465,16 @@ function generateId(): string {
 function loadFromStorage(): Partial<AppState> {
   if (typeof window === 'undefined') return {};
   try {
+    // Migration gate: versions below DATA_VERSION had fake sample data injected.
+    // Wipe local storage once so the user starts with a blank slate.
+    const storedVersion = parseInt(localStorage.getItem(DATA_VERSION_KEY) || '0', 10);
+    if (storedVersion < DATA_VERSION) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(INIT_KEY);
+      localStorage.setItem(DATA_VERSION_KEY, String(DATA_VERSION));
+      return {};
+    }
+
     const data = localStorage.getItem(STORAGE_KEY);
     if (data && data !== 'null' && data !== 'undefined') {
       const parsed = JSON.parse(data);
@@ -480,6 +494,7 @@ function saveToStorage(state: AppState): void {
   try {
     const { isLoading, isHydrated, ...persistedState } = state;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState));
+    localStorage.setItem(DATA_VERSION_KEY, String(DATA_VERSION));
   } catch (e) {
     console.error('Failed to save to localStorage:', e);
   }
