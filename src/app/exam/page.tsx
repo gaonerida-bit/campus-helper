@@ -17,43 +17,9 @@ interface LocalQuestion {
   isPracticed: boolean;
 }
 
-interface MockExam {
-  id: number;
-  company: string;
-  position: string;
-  date: string;
-  time: string;
-  type: string;
-  status: string;
-  location?: string;
-  duration?: string;
-  subjects?: string[];
-  notes?: string;
-  score?: number;
-}
-
-const mockExams: MockExam[] = [
-  { id: 1, company: '阿里巴巴', position: '前端工程师', date: '2026-06-16', time: '14:00', type: '笔试', status: 'upcoming', location: '在线', duration: '2小时', subjects: ['选择题', '编程题'], notes: '笔试系统已发到邮箱' },
-  { id: 2, company: '字节跳动', position: '前端开发', date: '2026-06-14', time: '10:00', type: 'OT', status: 'upcoming', duration: '1小时', subjects: ['逻辑题', '编程题'], notes: '限时测试' },
-  { id: 3, company: '腾讯', position: 'Web前端', date: '2026-06-10', time: '15:00', type: '笔试', status: 'upcoming', location: '线下', duration: '3小时', subjects: ['选择题', '填空题', '编程题'] },
-  { id: 4, company: '美团', position: '前端研发', date: '2026-06-05', time: '09:00', type: '笔试', status: 'completed', score: 85, subjects: ['选择题', '编程题'] },
-  { id: 5, company: '网易', position: 'Web前端', date: '2026-06-03', time: '14:00', type: 'OT', status: 'completed', score: 92 },
-];
-
-const questionBank: LocalQuestion[] = [
-  { id: 1, category: '前端基础', type: '选择', difficulty: 'easy', question: '以下哪个不是 JavaScript 的数据类型？', answer: 'array', isStarred: false, isPracticed: true },
-  { id: 2, category: '前端基础', type: '选择', difficulty: 'medium', question: 'CSS 中 display: none 和 visibility: hidden 的区别是？', answer: '前者不占据空间，后者占据空间', isStarred: true, isPracticed: false },
-  { id: 3, category: 'JavaScript', type: '编程', difficulty: 'medium', question: '实现一个深拷贝函数', answer: 'function deepClone(obj) { ... }', isStarred: true, isPracticed: false },
-  { id: 4, category: 'JavaScript', type: '编程', difficulty: 'hard', question: '实现一个 Promise.all', answer: 'function promiseAll(promises) { ... }', isStarred: true, isPracticed: false },
-  { id: 5, category: 'React', type: '简答', difficulty: 'medium', question: 'React Hooks 的原理是什么？', isStarred: false, isPracticed: true },
-  { id: 6, category: 'React', type: '选择', difficulty: 'easy', question: 'useEffect 的第二个参数用于？', answer: '依赖项数组', isStarred: false, isPracticed: true },
-  { id: 7, category: '算法', type: '编程', difficulty: 'hard', question: '手写快速排序', answer: 'function quickSort(arr) { ... }', isStarred: true, isPracticed: false },
-  { id: 8, category: '算法', type: '编程', difficulty: 'medium', question: '合并两个有序数组', answer: 'function merge(arr1, arr2) { ... }', isStarred: false, isPracticed: false },
-  { id: 9, category: '网络', type: '填空', difficulty: 'medium', question: 'HTTP 请求方法中，_____ 用于更新资源。', answer: 'PUT', isStarred: false, isPracticed: true },
-  { id: 10, category: '网络', type: '简答', difficulty: 'hard', question: '解释 HTTPS 的工作原理', isStarred: true, isPracticed: false },
-  { id: 11, category: '前端基础', type: '选择', difficulty: 'easy', question: 'JavaScript 中 === 和 == 的区别是？', answer: '=== 严格相等，不进行类型转换', isStarred: false, isPracticed: true },
-  { id: 12, category: '工程化', type: '简答', difficulty: 'medium', question: 'Webpack 的构建流程是什么？', isStarred: false, isPracticed: false },
-];
+// No hardcoded exam records or question bank.
+// Exams come from useExams() (DataContext).
+// Questions start empty — users add their own practice questions.
 
 const categoryConfig: Record<string, { icon: string; color: string }> = {
   '前端基础': { icon: '📚', color: 'bg-[var(--primary)]' },
@@ -211,7 +177,7 @@ export default function ExamPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [questions, setQuestions] = useState(questionBank);
+  const [questions, setQuestions] = useState<LocalQuestion[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<LocalQuestion | null>(null);
   const [isAddExamOpen, setIsAddExamOpen] = useState(false);
 
@@ -372,6 +338,13 @@ export default function ExamPage() {
                 </div>
               </div>
             </div>
+            {filteredQuestions.length === 0 && (
+              <div className="text-center py-16 bg-[var(--surface)] rounded-2xl">
+                <div className="text-5xl mb-4">📚</div>
+                <p className="text-[var(--foreground-light)] mb-2">题库暂无内容</p>
+                <p className="text-sm text-[var(--foreground-muted)]">可在此添加练习题，记录学习进度</p>
+              </div>
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {filteredQuestions.map((q) => {
                 const catConfig = categoryConfig[q.category];

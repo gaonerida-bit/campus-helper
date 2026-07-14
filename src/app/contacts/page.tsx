@@ -15,48 +15,7 @@ const relationConfig: Record<string, { icon: string; color: string }> = {
   '其他': { icon: '👤', color: 'bg-[var(--muted-dark)]' },
 };
 
-const companyProfiles: Record<string, CompanyProfile> = {
-  '字节跳动': {
-    id: 'bytedance',
-    name: '字节跳动',
-    industry: '互联网/科技',
-    size: '10000+人',
-    description: '全球领先的互联网科技公司，旗下产品包括抖音、TikTok、今日头条等',
-    culture: '年轻活力、扁平管理、追求极致、坦诚清晰',
-    benefits: ['六险一金全额', '免费三餐/下午茶', '租房补贴', '弹性工作', '股票期权'],
-    createdAt: new Date().toISOString(),
-  },
-  '腾讯': {
-    id: 'tencent',
-    name: '腾讯',
-    industry: '互联网/科技',
-    size: '100000+人',
-    description: '中国最大的互联网综合服务提供商之一，社交、游戏、金融科技等领域龙头',
-    culture: '瑞雪精神、用户为本、科技向善',
-    benefits: ['五险一金', '免费早餐', '年终奖金', '带薪年假', '员工关怀'],
-    createdAt: new Date().toISOString(),
-  },
-  '美团': {
-    id: 'meituan',
-    name: '美团',
-    industry: '本地生活',
-    size: '100000+人',
-    description: '中国领先的生活服务电商平台，覆盖外卖、酒旅、出行等多个领域',
-    culture: '以客户为中心、长期有耐心、追求卓越',
-    benefits: ['五险一金', '餐补', '交通补贴', '定期体检', '团建费'],
-    createdAt: new Date().toISOString(),
-  },
-  '阿里巴巴': {
-    id: 'alibaba',
-    name: '阿里巴巴',
-    industry: '互联网/电商',
-    size: '200000+人',
-    description: '全球领先的电子商务企业，涵盖淘宝、天猫、阿里云等业务',
-    culture: '客户第一、团队合作、拥抱变化、诚信、激情、敬业',
-    benefits: ['六险一金', '股票期权', '带薪年假', '员工购房贷款', '免费健身房'],
-    createdAt: new Date().toISOString(),
-  },
-};
+// Company profiles come from DataContext (useCompanyProfiles) — no hardcoded data.
 
 // 添加/编辑联系人表单
 function ContactForm({
@@ -200,16 +159,18 @@ function ContactDetailModal({
   onClose,
   onEdit,
   onViewCompany,
-  onDelete
+  onDelete,
+  profilesByName,
 }: {
   contact: AppContact;
   onClose: () => void;
   onEdit: () => void;
   onViewCompany: (company: string) => void;
   onDelete: () => void;
+  profilesByName: Record<string, CompanyProfile>;
 }) {
   const config = relationConfig[contact.relationship] || relationConfig['其他'];
-  const hasCompanyProfile = companyProfiles[contact.company];
+  const hasCompanyProfile = !!(contact.company && profilesByName[contact.company]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -295,12 +256,14 @@ function ContactDetailModal({
 // 公司详情模态框
 function CompanyProfileModal({
   company,
-  onClose
+  onClose,
+  profilesByName,
 }: {
   company: string;
   onClose: () => void;
+  profilesByName: Record<string, CompanyProfile>;
 }) {
-  const profile = companyProfiles[company];
+  const profile = profilesByName[company];
 
   if (!profile) {
     return (
@@ -384,7 +347,8 @@ export default function ContactsPage() {
   });
 
   const uniqueRelations = ['all', ...Array.from(new Set(contacts.map((c) => c.relationship)))];
-  const allCompanyProfiles = { ...companyProfiles, ...Object.fromEntries(storedProfiles.map(p => [p.name, p])) };
+  // Build profile lookup exclusively from DataContext (no hardcoded fallback)
+  const profilesByName: Record<string, CompanyProfile> = Object.fromEntries(storedProfiles.map(p => [p.name, p]));
 
   const handleSaveContact = (data: Omit<AppContact, 'id' | 'createdAt'>) => {
     if (editingContact) {
@@ -568,7 +532,7 @@ export default function ContactsPage() {
             <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">🏢 公司内推资源</h3>
               <div className="space-y-3">
-                {Object.keys(allCompanyProfiles).map((company) => (
+                {Object.keys(profilesByName).map((company) => (
                   <div
                     key={company}
                     onClick={() => setSelectedCompany(company)}
@@ -604,12 +568,13 @@ export default function ContactsPage() {
           onEdit={() => handleEditContact(selectedContact)}
           onViewCompany={handleViewCompany}
           onDelete={() => handleDeleteContact(selectedContact.id)}
+          profilesByName={profilesByName}
         />
       )}
 
       {/* 公司详情 */}
       {selectedCompany && (
-        <CompanyProfileModal company={selectedCompany} onClose={() => setSelectedCompany(null)} />
+        <CompanyProfileModal company={selectedCompany} onClose={() => setSelectedCompany(null)} profilesByName={profilesByName} />
       )}
 
       {/* 添加/编辑表单 */}

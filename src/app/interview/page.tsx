@@ -4,7 +4,8 @@ import { useState } from 'react';
 import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
 import Button from '@/components/UI/Button';
-import { useInterviews, useQuestions, Interview as AppInterview } from '@/context/DataContext';
+import { useInterviews, useQuestions, useApplications, Interview as AppInterview } from '@/context/DataContext';
+import { getAppliedCompanies } from '@/lib/application-selectors';
 import AIMockInterview from '@/components/AI/AIMockInterview';
 
 interface InterviewQuestion {
@@ -55,18 +56,9 @@ const typeConfig: Record<string, { icon: string; color: string; bgColor: string;
   '其他': { icon: '📌', color: 'text-[var(--foreground-muted)]', bgColor: 'bg-[var(--muted)]', textColor: 'text-[var(--foreground-muted)]' },
 };
 
-const questionBank: InterviewQuestion[] = [
-  { id: 1, category: '项目经历', question: '介绍一下你最成功的项目', answer: '使用STAR法则，描述 Situation、Task、Action、Result', isStarred: true, isPracticed: false },
-  { id: 2, category: '技术问题', question: 'React 的生命周期有哪些', answer: '挂载阶段：constructor、render、componentDidMount\n更新阶段：shouldComponentUpdate、render、componentDidUpdate\n卸载阶段：componentWillUnmount', isStarred: true, isPracticed: false },
-  { id: 3, category: '算法问题', question: '实现一个防抖函数', answer: 'function debounce(fn, delay) {\n  let timer = null;\n  return function(...args) {\n    clearTimeout(timer);\n    timer = setTimeout(() => {\n      fn.apply(this, args);\n    }, delay);\n  }\n}', isStarred: false, isPracticed: false },
-  { id: 4, category: '场景设计', question: '如何设计一个秒杀系统', answer: '1. 限流\n2. 缓存\n3. 异步处理\n4. 数据库优化', isStarred: true, isPracticed: false },
-  { id: 5, category: '开放问题', question: '为什么选择我们公司', answer: '1. 公司业务方向与个人发展匹配\n2. 技术栈相符\n3. 企业文化吸引', isStarred: false, isPracticed: false },
-];
-
-const interviewRecords: InterviewRecord[] = [
-  { id: 1, company: '字节跳动', position: '前端开发', date: '2026-05-28', round: '二面', type: '技术面', questions: [{ q: 'React虚拟DOM原理', a: '通过JS对象模拟DOM节点...' }, { q: '盒模型', a: 'content-box和border-box' }], difficulty: 'hard', selfRating: 4, feedback: '面试官很专业', improvements: ['加强项目深度'], nextSteps: '等待HR面试' },
-  { id: 2, company: '阿里巴巴', position: '前端工程师', date: '2026-05-25', round: '一面', type: '技术面', questions: [{ q: '闭包的理解', a: '函数执行后返回内部函数...' }], difficulty: 'medium', selfRating: 3, feedback: '整体还可以', improvements: ['手撕算法需加强'], nextSteps: '等待二面通知' },
-];
+// No hardcoded question bank or interview records.
+// Questions come from useQuestions() (DataContext).
+// Interview records (复盘) are user-created — start empty.
 
 // 面试详情模态框
 function InterviewDetailModal({
@@ -385,33 +377,35 @@ function AddReviewForm({
 export default function InterviewPage() {
   const { interviews, update: updateInterview } = useInterviews();
   const { questions: contextQuestions, toggleStar: contextToggleStar } = useQuestions();
+  const { applications } = useApplications();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'questions' | 'records' | 'ai'>('upcoming');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [selectedQuestion, setSelectedQuestion] = useState<InterviewQuestion | null>(null);
   const [selectedInterview, setSelectedInterview] = useState<AppInterview | null>(null);
   const [selectedRecord, setSelectedRecord] = useState<InterviewRecord | null>(null);
   const [isAddReviewOpen, setIsAddReviewOpen] = useState(false);
-  const [localQuestions, setLocalQuestions] = useState<InterviewQuestion[]>(questionBank);
-  const [records, setRecords] = useState<InterviewRecord[]>(interviewRecords);
+  // Questions come from DataContext; local state is only for isPracticed (client-only)
+  const [practicedIds, setPracticedIds] = useState<Set<string>>(new Set());
+  const [records, setRecords] = useState<InterviewRecord[]>([]);
   const [showAIMock, setShowAIMock] = useState(false);
+  // Derive available companies from real application data
+  const appliedCompanies = getAppliedCompanies(applications);
   const [mockConfig, setMockConfig] = useState({
-    company: '字节跳动',
-    position: '前端开发工程师',
+    company: appliedCompanies[0] || '',
+    position: '',
     type: '技术一面',
     duration: 30,
   });
 
-  // Combine context questions with local questions
-  const questions = contextQuestions.length > 0
-    ? contextQuestions.map(q => ({
-        id: parseInt(q.id),
-        category: q.category,
-        question: q.question,
-        answer: q.answer,
-        isStarred: q.starred || false,
-        isPracticed: false,
-      } as InterviewQuestion))
-    : localQuestions;
+  // Questions come from DataContext only — no hardcoded fallback
+  const questions: InterviewQuestion[] = contextQuestions.map(q => ({
+    id: parseInt(q.id) || 0,
+    category: q.category,
+    question: q.question,
+    answer: q.answer,
+    isStarred: q.starred || false,
+    isPracticed: practicedIds.has(q.id),
+  }));
 
   const upcomingInterviews = interviews.filter((i) => i.status === 'upcoming');
   const completedInterviews = interviews.filter((i) => i.status === 'completed');
@@ -421,19 +415,16 @@ export default function InterviewPage() {
     : questions.filter(q => q.category === filterCategory);
 
   const toggleStar = (id: number) => {
-    if (contextQuestions.length > 0) {
-      contextToggleStar(String(id));
-    } else {
-      setLocalQuestions(localQuestions.map(q =>
-        q.id === id ? { ...q, isStarred: !q.isStarred } : q
-      ));
-    }
+    contextToggleStar(String(id));
   };
 
   const togglePracticed = (id: number) => {
-    setLocalQuestions(localQuestions.map(q =>
-      q.id === id ? { ...q, isPracticed: !q.isPracticed } : q
-    ));
+    const strId = String(id);
+    setPracticedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(strId)) next.delete(strId); else next.add(strId);
+      return next;
+    });
   };
 
   const handleAddReview = (data: Partial<InterviewRecord>) => {
@@ -453,12 +444,17 @@ export default function InterviewPage() {
     setIsAddReviewOpen(true);
   };
 
-  // 统计
+  // Stats derived from real data
   const starredCount = questions.filter(q => q.isStarred).length;
   const practicedCount = questions.filter(q => q.isPracticed).length;
   const avgRating = records.length > 0
     ? (records.reduce((a, b) => a + b.selfRating, 0) / records.length).toFixed(1)
-    : '0';
+    : '--';
+  // High-frequency questions: most-starred questions from real question bank
+  const topQuestions = [...questions]
+    .filter(q => q.isStarred)
+    .slice(0, 3)
+    .map(q => q.question);
 
   // Get type config for an interview
   const getTypeConfig = (type: string) => {
@@ -469,7 +465,7 @@ export default function InterviewPage() {
     <AppLayout>
       <Header
         title="面试准备"
-        subtitle={`即将面试 ${upcomingInterviews.length} 场 · 收录 ${questions.length > 0 ? questions.length : localQuestions.length} 道题目`}
+        subtitle={`即将面试 ${upcomingInterviews.length} 场 · 收录 ${questions.length} 道题目`}
         actions={
           <div className="flex gap-2">
             <div className="inline-flex bg-[var(--muted)] rounded-xl p-1">
@@ -641,7 +637,7 @@ export default function InterviewPage() {
                         <span className="text-[var(--foreground)]">{cat}</span>
                       </div>
                       <span className="text-[var(--foreground-muted)]">
-                        {questions.length > 0 ? questions.filter(q => q.category === cat).length : localQuestions.filter(q => q.category === cat).length}
+                        {questions.filter(q => q.category === cat).length}
                       </span>
                     </div>
                   ))}
@@ -656,12 +652,12 @@ export default function InterviewPage() {
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-[var(--foreground-light)]">已练习</span>
-                      <span className="text-[var(--foreground)]">{practicedCount}/{questions.length > 0 ? questions.length : localQuestions.length}</span>
+                      <span className="text-[var(--foreground)]">{practicedCount}/{questions.length}</span>
                     </div>
                     <div className="h-2 bg-[var(--muted)] rounded-full overflow-hidden">
                       <div
                         className="h-full bg-[var(--success)] rounded-full transition-all"
-                        style={{ width: `${questions.length > 0 ? (practicedCount / questions.length) * 100 : (practicedCount / localQuestions.length) * 100}%` }}
+                        style={{ width: questions.length > 0 ? `${(practicedCount / questions.length) * 100}%` : '0%' }}
                       />
                     </div>
                   </div>
@@ -709,12 +705,19 @@ export default function InterviewPage() {
                 >
                   {cat === 'all' ? '📚' : categoryConfig[cat]?.icon} {cat === 'all' ? '全部' : cat}
                   <span className="text-xs opacity-70">
-                    {cat === 'all' ? (questions.length > 0 ? questions.length : localQuestions.length) : (questions.length > 0 ? questions.filter(q => q.category === cat).length : localQuestions.filter(q => q.category === cat).length)}
+                    {cat === 'all' ? questions.length : questions.filter(q => q.category === cat).length}
                   </span>
                 </button>
               ))}
             </div>
 
+            {filteredQuestions.length === 0 && (
+              <div className="text-center py-16 bg-[var(--surface)] rounded-2xl">
+                <div className="text-5xl mb-4">📝</div>
+                <p className="text-[var(--foreground-light)] mb-2">题库还没有内容</p>
+                <p className="text-sm text-[var(--foreground-muted)]">在投递详情或记录页添加面试题目后将显示在这里</p>
+              </div>
+            )}
             <div className="space-y-3">
               {filteredQuestions.map((q, idx) => {
                 const config = categoryConfig[q.category] || categoryConfig['技术问题'];
@@ -875,17 +878,23 @@ export default function InterviewPage() {
                 </div>
 
                 <div className="bg-[var(--surface)] rounded-2xl p-5 shadow-sm">
-                  <h4 className="font-semibold text-[var(--foreground)] mb-4">🔥 高频问题</h4>
-                  <div className="space-y-2">
-                    {['React Hooks原理', '项目中的性能优化', '职业规划'].map((q, i) => (
-                      <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-[var(--muted)]">
-                        <span className="w-6 h-6 rounded-full bg-[var(--primary)] text-white text-xs flex items-center justify-center">
-                          {i + 1}
-                        </span>
-                        <span className="text-sm text-[var(--foreground-light)]">{q}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <h4 className="font-semibold text-[var(--foreground)] mb-4">⭐ 重点题目</h4>
+                  {topQuestions.length > 0 ? (
+                    <div className="space-y-2">
+                      {topQuestions.map((q, i) => (
+                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-[var(--muted)]">
+                          <span className="w-6 h-6 rounded-full bg-[var(--primary)] text-white text-xs flex items-center justify-center">
+                            {i + 1}
+                          </span>
+                          <span className="text-sm text-[var(--foreground-light)]">{q}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--foreground-muted)] text-center py-2">
+                      在题库中标星即可显示重点题目
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -905,19 +914,22 @@ export default function InterviewPage() {
                   <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                     选择目标公司
                   </label>
-                  <select
-                    value={mockConfig.company}
-                    onChange={(e) => setMockConfig({ ...mockConfig, company: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                  >
-                    <option value="">请选择公司</option>
-                    <option value="字节跳动">字节跳动</option>
-                    <option value="腾讯">腾讯</option>
-                    <option value="阿里巴巴">阿里巴巴</option>
-                    <option value="美团">美团</option>
-                    <option value="京东">京东</option>
-                    <option value="百度">百度</option>
-                  </select>
+                  {appliedCompanies.length > 0 ? (
+                    <select
+                      value={mockConfig.company}
+                      onChange={(e) => setMockConfig({ ...mockConfig, company: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                    >
+                      <option value="">请选择公司</option>
+                      {appliedCompanies.map(company => (
+                        <option key={company} value={company}>{company}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full px-4 py-3 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm text-[var(--foreground-muted)]">
+                      请先在投递页面添加投递记录
+                    </div>
+                  )}
                 </div>
 
                 <div>

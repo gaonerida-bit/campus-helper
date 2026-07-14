@@ -7,13 +7,7 @@ import Header from '@/components/Layout/Header';
 import StatCard from '@/components/UI/StatCard';
 import Button from '@/components/UI/Button';
 import GlobalSearch from '@/components/UI/GlobalSearch';
-import { useApplications, useInterviews, useOffers, useEvents } from '@/context/DataContext';
-
-const goals = {
-  applications: { current: 0, target: 50, label: '投递目标' },
-  interviews: { current: 0, target: 10, label: '面试目标' },
-  replies: { current: 0, target: 20, label: '回复目标' },
-};
+import { useApplications, useInterviews, useOffers, useEvents, useUserProfile } from '@/context/DataContext';
 
 const quickActions = [
   { id: 1, icon: '📤', title: '添加投递', href: '/applications/new', color: 'bg-[var(--primary)]' },
@@ -131,8 +125,14 @@ export default function HomePage() {
   const { interviews } = useInterviews();
   const { offers } = useOffers();
   const { events } = useEvents();
+  const { userProfile } = useUserProfile();
 
   const weeklySchedule = buildWeeklySchedule(events, interviews);
+
+  // Goals from user settings (with sensible defaults)
+  const goalApplications = userProfile.goals?.applications || 50;
+  const goalInterviews = userProfile.goals?.interviews || 20;
+  const goalReplies = userProfile.goals?.replies || 30;
 
   // Calculate real stats
   const stats = {
@@ -140,7 +140,7 @@ export default function HomePage() {
     pendingInterview: interviews.filter(i => i.status === 'upcoming').length,
     offerReceived: offers.length,
     totalReplies: applications.filter(a => a.status !== 'pending').length,
-    weeklyGoal: 50,
+    weeklyGoal: goalApplications,
     weeklyProgress: applications.length,
   };
 
@@ -266,36 +266,36 @@ export default function HomePage() {
               <div className="p-4 bg-[var(--muted)] rounded-xl">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[var(--foreground-light)]">投递目标</span>
-                  <span className="text-sm font-semibold text-[var(--foreground)]">{stats.totalApplications}/50</span>
+                  <span className="text-sm font-semibold text-[var(--foreground)]">{stats.totalApplications}/{goalApplications}</span>
                 </div>
                 <div className="h-2 bg-[var(--background)] rounded-full overflow-hidden">
                   <div
                     className="h-full bg-[var(--primary)] rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, (stats.totalApplications / 50) * 100)}%` }}
+                    style={{ width: `${Math.min(100, goalApplications > 0 ? (stats.totalApplications / goalApplications) * 100 : 0)}%` }}
                   />
                 </div>
               </div>
               <div className="p-4 bg-[var(--muted)] rounded-xl">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[var(--foreground-light)]">面试目标</span>
-                  <span className="text-sm font-semibold text-[var(--foreground)]">{stats.pendingInterview}/10</span>
+                  <span className="text-sm font-semibold text-[var(--foreground)]">{stats.pendingInterview}/{goalInterviews}</span>
                 </div>
                 <div className="h-2 bg-[var(--background)] rounded-full overflow-hidden">
                   <div
                     className="h-full bg-[var(--warning)] rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, (stats.pendingInterview / 10) * 100)}%` }}
+                    style={{ width: `${Math.min(100, goalInterviews > 0 ? (stats.pendingInterview / goalInterviews) * 100 : 0)}%` }}
                   />
                 </div>
               </div>
               <div className="p-4 bg-[var(--muted)] rounded-xl">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[var(--foreground-light)]">回复目标</span>
-                  <span className="text-sm font-semibold text-[var(--foreground)]">{stats.totalReplies}/20</span>
+                  <span className="text-sm font-semibold text-[var(--foreground)]">{stats.totalReplies}/{goalReplies}</span>
                 </div>
                 <div className="h-2 bg-[var(--background)] rounded-full overflow-hidden">
                   <div
                     className="h-full bg-[var(--success)] rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, (stats.totalReplies / 20) * 100)}%` }}
+                    style={{ width: `${Math.min(100, goalReplies > 0 ? (stats.totalReplies / goalReplies) * 100 : 0)}%` }}
                   />
                 </div>
               </div>

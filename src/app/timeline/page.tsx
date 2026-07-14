@@ -4,7 +4,8 @@ import { useState, useMemo } from 'react';
 import AppLayout from '@/components/Layout/AppLayout';
 import Header from '@/components/Layout/Header';
 import Button from '@/components/UI/Button';
-import { useApplications, useInterviews, useActivities, useOffers } from '@/context/DataContext';
+import { useApplications, useInterviews, useActivities, useOffers, useExams } from '@/context/DataContext';
+import { getConversionFunnel } from '@/lib/application-selectors';
 
 const typeConfig = {
   applied: { icon: '📮', color: 'bg-[var(--primary)]', textColor: 'text-[var(--primary)]', label: '投递' },
@@ -30,6 +31,7 @@ export default function TimelinePage() {
   const { interviews } = useInterviews();
   const { activities } = useActivities();
   const { offers } = useOffers();
+  const { exams } = useExams();
   const [filterType, setFilterType] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'timeline' | 'list' | 'journey'>('journey');
 
@@ -321,30 +323,33 @@ export default function TimelinePage() {
                 </div>
               </div>
 
-              {/* 转化率漏斗 */}
+              {/* 转化漏斗 — 真实数据 */}
               <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">📊 转化漏斗</h3>
-                <div className="space-y-3">
-                  {[
-                    { label: '投递', count: applications.length, color: 'bg-[var(--primary)]', width: 100 },
-                    { label: '简历通过', count: Math.round(applications.length * 0.6), color: 'bg-[var(--info)]', width: 60 },
-                    { label: '笔试通过', count: Math.round(applications.length * 0.35), color: 'bg-[var(--warning)]', width: 35 },
-                    { label: '面试通过', count: Math.round(applications.length * 0.15), color: 'bg-[var(--accent)]', width: 15 },
-                    { label: 'Offer', count: offers.length, color: 'bg-[var(--success)]', width: Math.max(5, (offers.length / applications.length) * 100) },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <span className="w-20 text-sm text-[var(--foreground-light)]">{item.label}</span>
-                      <div className="flex-1 h-6 bg-[var(--muted)] rounded-lg overflow-hidden">
-                        <div
-                          className={`h-full ${item.color} rounded-lg transition-all flex items-center justify-end pr-2`}
-                          style={{ width: `${item.width}%` }}
-                        >
-                          <span className="text-xs font-medium text-white">{item.count}</span>
+                {applications.length === 0 ? (
+                  <div className="text-center py-6">
+                    <p className="text-[var(--foreground-muted)] text-sm">添加投递记录后查看真实转化漏斗</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {getConversionFunnel(applications, interviews, exams, offers).map((item, i) => {
+                      const colors = ['bg-[var(--primary)]', 'bg-[var(--info)]', 'bg-[var(--warning)]', 'bg-[var(--accent)]', 'bg-[var(--success)]'];
+                      return (
+                        <div key={i} className="flex items-center gap-3">
+                          <span className="w-20 text-sm text-[var(--foreground-light)]">{item.label}</span>
+                          <div className="flex-1 h-6 bg-[var(--muted)] rounded-lg overflow-hidden">
+                            <div
+                              className={`h-full ${colors[i]} rounded-lg transition-all flex items-center justify-end pr-2`}
+                              style={{ width: `${item.widthPercent}%` }}
+                            >
+                              <span className="text-xs font-medium text-white">{item.count}</span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* 最近动态 */}
