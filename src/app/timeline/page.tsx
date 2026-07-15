@@ -246,7 +246,14 @@ export default function TimelinePage() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-xl font-semibold">🎯 求职进度</h3>
-                    <p className="text-white/80 text-sm mt-1">秋招第 {Math.ceil((Date.now() - new Date('2026-08-01').getTime()) / (1000 * 60 * 60 * 24))} 天</p>
+                    {applications.length > 0 && (() => {
+                      const firstDate = applications.reduce((earliest, a) =>
+                        a.appliedDate < earliest ? a.appliedDate : earliest,
+                        applications[0].appliedDate
+                      );
+                      const dayCount = Math.max(0, Math.ceil((Date.now() - new Date(firstDate).getTime()) / (1000 * 60 * 60 * 24)));
+                      return <p className="text-white/80 text-sm mt-1">求职第 {dayCount} 天</p>;
+                    })()}
                   </div>
                   <div className="text-right">
                     <p className="text-3xl font-bold">{stats.applied}</p>

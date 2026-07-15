@@ -8,6 +8,7 @@ import StatCard from '@/components/UI/StatCard';
 import Button from '@/components/UI/Button';
 import GlobalSearch from '@/components/UI/GlobalSearch';
 import { useApplications, useInterviews, useOffers, useEvents, useUserProfile } from '@/context/DataContext';
+import { buildWeeklySchedule, getRecentApplications } from '@/lib/application-selectors';
 
 const quickActions = [
   { id: 1, icon: '📤', title: '添加投递', href: '/applications/new', color: 'bg-[var(--primary)]' },
@@ -19,46 +20,6 @@ const quickActions = [
   { id: 7, icon: '🏆', title: 'Offer对比', href: '/offer', color: 'bg-amber-500' },
   { id: 8, icon: '🤖', title: 'AI模拟面试', href: '/interview', color: 'bg-pink-500' },
 ];
-
-const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-
-function buildWeeklySchedule(events: any[], interviews: any[]) {
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-  const week: Array<{ day: string; date: string; events: string[]; highlight: boolean; dateStr: string }> = [];
-
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() + i);
-    const dateStr = d.toISOString().split('T')[0];
-    const dayLabel = i === 0 ? '今天' : i === 1 ? '明天' : dayNames[d.getDay()];
-
-    const dayEvents = events.filter(e => e.date === dateStr);
-    const dayInterviews = interviews.filter(int => int.date === dateStr);
-
-    const eventLabels: string[] = [];
-    dayInterviews.forEach(int => {
-      eventLabels.push(`${int.time} ${int.company} ${int.type}`);
-    });
-    dayEvents.forEach(e => {
-      eventLabels.push(e.title);
-    });
-
-    week.push({
-      day: dayLabel,
-      date: dayNames[d.getDay()],
-      events: eventLabels.length > 0 ? eventLabels : ['暂无安排'],
-      highlight: i === 0,
-      dateStr,
-    });
-  }
-
-  return week;
-}
 
 const statusColors = {
   interview: 'text-[var(--info)] bg-[var(--info)]/10',
@@ -319,7 +280,7 @@ export default function HomePage() {
                   }`}
                 >
                   <div className={`text-xs ${day.highlight ? 'text-white/80' : 'text-[var(--foreground-muted)]'} mb-1`}>{day.day}</div>
-                  <div className={`font-semibold mb-2 ${day.highlight ? 'text-white' : 'text-[var(--foreground)]'}`}>{day.date}</div>
+                  <div className={`font-semibold mb-2 ${day.highlight ? 'text-white' : 'text-[var(--foreground)]'}`}>{day.dayName}</div>
                   <div className={`text-xs space-y-1 ${day.highlight ? 'text-white/90' : 'text-[var(--foreground-light)]'}`}>
                     {day.events.map((event, i) => (
                       <div key={i} className="truncate" title={event}>
@@ -463,7 +424,7 @@ export default function HomePage() {
               </div>
               {applications.length > 0 ? (
                 <div className="space-y-3">
-                  {applications.slice(0, 5).map((app: any) => (
+                  {getRecentApplications(applications, 5).map((app) => (
                     <div
                       key={app.id}
                       className="flex items-center justify-between p-3 bg-[var(--muted)] rounded-xl hover:bg-[var(--muted-dark)] transition-smooth cursor-pointer"

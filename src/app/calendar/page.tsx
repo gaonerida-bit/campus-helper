@@ -19,16 +19,27 @@ interface TimelineEvent {
 
 const TIMELINE_STORAGE_KEY = 'campus-timeline-events';
 
-const defaultTimelineEvents: TimelineEvent[] = [
-  { id: '1', startDate: '2026-06-01', endDate: '2026-07-31', title: '秋招提前批',   description: '部分大厂提前批开放',         isActive: false },
-  { id: '2', startDate: '2026-07-01', endDate: '2026-08-31', title: '暑期实习转正', description: '实习期结束，转正答辩',         isActive: false },
-  { id: '3', startDate: '2026-08-01', endDate: '2026-09-30', title: '秋招正式批',   description: '主力招聘期，大量岗位开放',     isActive: true  },
-  { id: '4', startDate: '2026-09-01', endDate: '2026-10-31', title: '笔试高峰期',   description: '集中笔试阶段',               isActive: false },
-  { id: '5', startDate: '2026-10-01', endDate: '2026-11-30', title: '秋招补录',     description: '部分岗位补招',               isActive: false },
-  { id: '6', startDate: '2026-11-01', endDate: '2026-12-31', title: 'Offer发放',    description: '签offer高峰期',              isActive: false },
-  { id: '7', startDate: '2027-02-01', endDate: '2027-03-31', title: '春招提前批',   description: '春招启动',                   isActive: false },
-  { id: '8', startDate: '2027-03-01', endDate: '2027-05-31', title: '春招正式批',   description: '春招主力期',                 isActive: false },
+const RAW_TIMELINE_STAGES: Omit<TimelineEvent, 'isActive'>[] = [
+  { id: '1', startDate: '2026-06-01', endDate: '2026-07-31', title: '秋招提前批',   description: '部分大厂提前批开放'         },
+  { id: '2', startDate: '2026-07-01', endDate: '2026-08-31', title: '暑期实习转正', description: '实习期结束，转正答辩'         },
+  { id: '3', startDate: '2026-08-01', endDate: '2026-09-30', title: '秋招正式批',   description: '主力招聘期，大量岗位开放'     },
+  { id: '4', startDate: '2026-09-01', endDate: '2026-10-31', title: '笔试高峰期',   description: '集中笔试阶段'               },
+  { id: '5', startDate: '2026-10-01', endDate: '2026-11-30', title: '秋招补录',     description: '部分岗位补招'               },
+  { id: '6', startDate: '2026-11-01', endDate: '2026-12-31', title: 'Offer发放',    description: '签offer高峰期'              },
+  { id: '7', startDate: '2027-02-01', endDate: '2027-03-31', title: '春招提前批',   description: '春招启动'                   },
+  { id: '8', startDate: '2027-03-01', endDate: '2027-05-31', title: '春招正式批',   description: '春招主力期'                 },
 ];
+
+/** Auto-detect isActive based on today's date when used as defaults. */
+function buildDefaultTimelineEvents(): TimelineEvent[] {
+  const today = new Date().toISOString().split('T')[0];
+  return RAW_TIMELINE_STAGES.map(s => ({
+    ...s,
+    isActive: today >= s.startDate && today <= s.endDate,
+  }));
+}
+
+const defaultTimelineEvents: TimelineEvent[] = buildDefaultTimelineEvents();
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -545,12 +556,24 @@ export default function CalendarPage() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-2xl p-6 shadow-md text-white">
-                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl mb-3">💡</div>
-                <h3 className="font-semibold mb-2">当前阶段</h3>
-                <p className="text-white/80 text-sm mb-2">秋招正式批进行中</p>
-                <p className="text-white/60 text-xs">8-9月是主力招聘期，大量岗位开放中</p>
-              </div>
+              {(() => {
+                const activeEvent = sortedTimelineEvents.find(e => e.isActive)
+                  ?? sortedTimelineEvents.find(e => todayStr >= e.startDate && todayStr <= e.endDate);
+                return (
+                  <div className="bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-2xl p-6 shadow-md text-white">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl mb-3">💡</div>
+                    <h3 className="font-semibold mb-2">当前阶段</h3>
+                    {activeEvent ? (
+                      <>
+                        <p className="text-white/80 text-sm mb-2">{activeEvent.title}进行中</p>
+                        <p className="text-white/60 text-xs">{activeEvent.description}</p>
+                      </>
+                    ) : (
+                      <p className="text-white/80 text-sm">暂无进行中的校招阶段，可在时间线视图中设置</p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         ) : (
