@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/Layout/AppLayout';
 import Button from '@/components/UI/Button';
-import { useApplications, useInterviews, useExams, useOffers, useActivities, Application as AppApplication } from '@/context/DataContext';
+import { useApplications, useInterviews, useExams, useOffers, useActivities, useMasterResume, Application as AppApplication } from '@/context/DataContext';
 import { usePipeline } from '@/context/PipelineContext';
+import { getKimiService } from '@/lib/kimi';
 
 const nodeTypeConfig = {
   interview: { icon: '🎯', color: 'bg-[var(--warning)]', label: '面试' },
@@ -161,6 +162,7 @@ export default function ApplicationDetailPage() {
   const { exams } = useExams();
   const { offers } = useOffers();
   const { activities } = useActivities();
+  const { masterResume } = useMasterResume();
   const { nodes: pipelineNodes } = usePipeline();
 
   const application = applications.find(a => a.id === id);
@@ -168,6 +170,12 @@ export default function ApplicationDetailPage() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  // Resume tab state
+  const [jdText, setJdText] = useState('');
+  const [aiDraft, setAiDraft] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiError, setAiError] = useState('');
 
   if (!application) {
     return (
@@ -274,6 +282,51 @@ export default function ApplicationDetailPage() {
 
   // Sort by time descending (newest first)
   timelineEvents.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+  // AI resume generation
+  const handleGenerateResume = async () => {
+    if (!jdText.trim()) { setAiError('请先粘贴岗位 JD'); return; }
+    setAiError('');
+    setAiDraft('');
+    setIsGenerating(true);
+    try {
+      const kimi = getKimiService();
+      if (!kimi.isConfigured()) {
+        setAiError('请先在「设置」页面配置 Kimi API Key，然后再使用 AI 定制功能。');
+        setIsGenerating(false);
+        return;
+      }
+      const resumeText = JSON.stringify({
+        basicInfo: masterResume.basicInfo,
+        educations: masterResume.educations,
+        internships: masterResume.internships,
+        projects: masterResume.projects,
+        skills: masterResume.skills,
+      }, null, 2);
+
+      const prompt = `你是一个资深猎头。请根据给定的岗位 JD，从我的全局履历库素材中，挑选出最相关的经历，并用 STAR 法则重写描述，忽略不相关经历，最终输出一份高度匹配此岗位的 Markdown 格式简历草稿。
+
+【目标岗位】${application.company} - ${application.position}
+
+【岗位 JD】
+${jdText}
+
+【我的全局履历库素材】
+${resumeText}
+
+请直接输出 Markdown 格式的简历，不要有额外说明。`;
+
+      let result = '';
+      for await (const chunk of kimi.chatStream([{ role: 'user', content: prompt }])) {
+        result += chunk;
+        setAiDraft(result);
+      }
+    } catch (err: unknown) {
+      setAiError(err instanceof Error ? err.message : '生成失败，请稍后重试');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const tabs: { id: TabType; label: string; icon: string; disabled?: boolean }[] = [
     { id: 'overview', label: '概览', icon: '📌' },
@@ -477,15 +530,75 @@ export default function ApplicationDetailPage() {
 
           {/* 简历 Tab */}
           {activeTab === 'resume' && (
-            <div className="max-w-3xl">
-              <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">📄 简历</h3>
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">🚧</div>
-                  <h4 className="text-lg font-semibold text-[var(--foreground)] mb-2">功能即将开放</h4>
-                  <p className="text-[var(--foreground-muted)]">后续版本将支持在此管理定制简历</p>
-                </div>
+            <div className="max-w-3xl space-y-6">
+              {/* 说明 */}
+              <div className="bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] rounded-2xl p-5 text-white">
+                <h3 className="font-semibold mb-1">🤖 AI 定制简历</h3>
+                <p className="text-white/80 text-sm">
+                  粘贴该岗位的 JD，AI 会从你的「履历库」中挑选最相关的经历，生成高度匹配的简历草稿。
+                </p>
               </div>
+
+              {/* 履历库状态 */}
+              {masterResume.educations.length === 0 && masterResume.internships.length === 0 && masterResume.projects.length === 0 && (
+                <div className="bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-xl p-4 text-sm text-[var(--warning)]">
+                  ⚠️ 你的履历库还是空的。请先前往「<a href="/resume-vault" className="font-medium underline">履历库</a>」填写教育/实习/项目经历，才能让 AI 生成有内容的简历。
+                </div>
+              )}
+
+              {/* JD 输入 */}
+              <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
+                <h4 className="font-medium text-[var(--foreground)] mb-3">📋 粘贴岗位 JD（职位描述）</h4>
+                <textarea
+                  value={jdText}
+                  onChange={e => setJdText(e.target.value)}
+                  rows={8}
+                  className="w-full px-4 py-3 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none"
+                  placeholder="将招聘网站上的岗位职责、任职要求等内容粘贴到这里..."
+                />
+                {aiError && (
+                  <p className="mt-2 text-sm text-red-500">{aiError}</p>
+                )}
+                <Button
+                  className="mt-4 w-full"
+                  onClick={handleGenerateResume}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? '🤖 AI 定制中...' : '✨ 基于履历库 AI 定制'}
+                </Button>
+              </div>
+
+              {/* AI 生成草稿 */}
+              {(aiDraft || isGenerating) && (
+                <div className="bg-[var(--surface)] rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium text-[var(--foreground)]">📄 AI 简历草稿</h4>
+                    {aiDraft && (
+                      <button
+                        onClick={() => navigator.clipboard.writeText(aiDraft)}
+                        className="text-xs text-[var(--primary)] hover:underline"
+                      >
+                        复制全文
+                      </button>
+                    )}
+                  </div>
+                  {isGenerating && !aiDraft && (
+                    <div className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] py-4">
+                      <span className="animate-spin">⏳</span> 正在生成中...
+                    </div>
+                  )}
+                  <textarea
+                    value={aiDraft}
+                    onChange={e => setAiDraft(e.target.value)}
+                    rows={20}
+                    className="w-full px-4 py-3 rounded-xl bg-[var(--muted)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none font-mono"
+                    placeholder="AI 生成的简历将显示在这里，你可以直接编辑..."
+                  />
+                  <p className="mt-2 text-xs text-[var(--foreground-muted)]">
+                    以上为 AI 草稿，请仔细核对内容后再使用。可直接在文本框中修改。
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

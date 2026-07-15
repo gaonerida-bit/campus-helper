@@ -151,6 +151,71 @@ export interface Resume {
   updatedAt: string;
 }
 
+// ─── MasterResume (Global Resume Vault) ────────────────────────────────────
+
+export interface MasterResumeBasicInfo {
+  name: string;
+  phone?: string;
+  email?: string;
+  location?: string;
+  targetPosition?: string;
+  targetSalary?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
+  summary?: string;
+}
+
+export interface MasterResumeEducation {
+  id: string;
+  school: string;
+  major: string;
+  degree: string;
+  startDate: string;
+  endDate: string;
+  gpa?: string;
+  courses?: string;
+  awards?: string;
+}
+
+export interface MasterResumeInternship {
+  id: string;
+  company: string;
+  position: string;
+  startDate: string;
+  endDate: string;
+  location?: string;
+  bullets: string[];
+}
+
+export interface MasterResumeProject {
+  id: string;
+  name: string;
+  role: string;
+  startDate: string;
+  endDate: string;
+  techStack: string[];
+  bullets: string[];
+  url?: string;
+}
+
+export interface MasterResumeSkills {
+  frontend?: string;
+  backend?: string;
+  languages?: string;
+  tools?: string;
+  other?: string;
+}
+
+export interface MasterResume {
+  basicInfo: MasterResumeBasicInfo;
+  educations: MasterResumeEducation[];
+  internships: MasterResumeInternship[];
+  projects: MasterResumeProject[];
+  skills: MasterResumeSkills;
+  updatedAt: string;
+}
+
 export interface UserProfile {
   name: string;
   title: string;
@@ -201,6 +266,7 @@ interface AppState {
   events: CalendarEvent[];
   offers: Offer[];
   resumes: Resume[];
+  masterResume: MasterResume;
   userProfile: UserProfile;
   chatHistory: ChatMessage[];
   activities: Activity[];
@@ -239,6 +305,7 @@ type Action =
   | { type: 'UPDATE_RESUME'; payload: { id: string; data: Partial<Resume> } }
   | { type: 'DELETE_RESUME'; payload: string }
   | { type: 'UPDATE_USER_PROFILE'; payload: Partial<UserProfile> }
+  | { type: 'UPDATE_MASTER_RESUME'; payload: MasterResume }
   | { type: 'ADD_CHAT_MESSAGE'; payload: ChatMessage }
   | { type: 'CLEAR_CHAT_HISTORY' }
   | { type: 'ADD_ACTIVITY'; payload: Activity }
@@ -246,6 +313,15 @@ type Action =
   | { type: 'CLEAR_ALL_DATA' };
 
 // ============= Initial State =============
+const defaultMasterResume: MasterResume = {
+  basicInfo: { name: '' },
+  educations: [],
+  internships: [],
+  projects: [],
+  skills: {},
+  updatedAt: '',
+};
+
 const defaultUserProfile: UserProfile = {
   name: '',
   title: '',
@@ -276,6 +352,7 @@ const initialState: AppState = {
   events: [],
   offers: [],
   resumes: [],
+  masterResume: defaultMasterResume,
   userProfile: defaultUserProfile,
   chatHistory: [],
   activities: [],
@@ -513,6 +590,8 @@ function appReducer(state: AppState, action: Action): AppState {
       };
     case 'UPDATE_USER_PROFILE':
       return { ...state, userProfile: { ...state.userProfile, ...action.payload } };
+    case 'UPDATE_MASTER_RESUME':
+      return { ...state, masterResume: { ...action.payload, updatedAt: new Date().toISOString() } };
     case 'ADD_CHAT_MESSAGE':
       return { ...state, chatHistory: [...state.chatHistory, action.payload] };
     case 'CLEAR_CHAT_HISTORY':
@@ -1169,6 +1248,19 @@ export function useStats() {
   };
 
   return { stats, goals };
+}
+
+export function useMasterResume() {
+  const { state, dispatch } = useApp();
+
+  const update = useCallback((data: MasterResume) => {
+    dispatch({ type: 'UPDATE_MASTER_RESUME', payload: data });
+  }, [dispatch]);
+
+  return {
+    masterResume: state.masterResume,
+    update,
+  };
 }
 
 export function useDataManagement() {

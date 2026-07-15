@@ -15,6 +15,7 @@ const navItems = [
 ];
 
 const moreNavItems = [
+  { href: '/resume-vault', label: '履历库', icon: '📚' },
   { href: '/records', label: '记录', icon: '📝' },
   { href: '/contacts', label: '联系人', icon: '🤝' },
   { href: '/ai', label: 'AI助手', icon: '🤖' },
